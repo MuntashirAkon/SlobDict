@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=@APP_LABEL@
+Exec=@APP_NAME@
+Icon=@APP_ID@
+Terminal=false
+Type=Application
+Categories=Dictionary;GTK;
+StartupNotify=true
+Keywords=word;synonym;definition;spelling;

@@ -1,0 +1,7 @@
+.flatpak-builder/
+__pycache__
+builddir/
+build/
+repo/
+slobdict/constants.py
+SlobDictGTK*.flatpak

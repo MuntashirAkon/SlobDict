@@ -1,0 +1,9 @@
+# SPDX-License-Identifier: AGPL-3.0-or-later
+
+rootdir = "@APP_ROOT@"
+app_id = "@APP_ID@"
+pkgdatadir = "@PKGDATA_DIR@"
+localedir = "@LOCALE_DIR@"
+version = "@VERSION@"
+app_label = "@APP_LABEL@"
+build_type = "@BUILD_TYPE@"

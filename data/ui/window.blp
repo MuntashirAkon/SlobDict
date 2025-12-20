@@ -1,0 +1,116 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $ExampleMainWindow: Adw.ApplicationWindow {
+  styles [
+    "devel",
+  ]
+
+  title: _("My Application");
+  default-width: 800;
+  default-height: 600;
+
+  Adw.Breakpoint {
+    condition ("max-width: 400px")
+
+    setters {
+      top_swicher.visible: false;
+      bottom_switcher.visible: true;
+    }
+  }
+
+  Adw.ToastOverlay toast_overlay {
+    Adw.ToolbarView main_view {
+      [top]
+      Adw.HeaderBar titlebar {
+        centering-policy: strict;
+
+        [title]
+        Adw.ViewSwitcher top_swicher {
+          stack: view_stack;
+          policy: wide;
+        }
+
+        [end]
+        Gtk.MenuButton {
+          tooltip-text: _("Main Menu");
+          icon-name: "open-menu-symbolic";
+          menu-model: main-menu;
+        }
+      }
+
+      Adw.ViewStack view_stack {
+        vexpand: true;
+        hexpand: true;
+
+        Adw.ViewStackPage page_one {
+          name: "page_one";
+          title: _("Page One");
+          icon-name: "accessories-dictionary-symbolic";
+
+          child: Gtk.Box page_one_content {
+            orientation: vertical;
+
+            Gtk.Label {
+              hexpand: true;
+              vexpand: true;
+              label: "Page One";
+
+              styles [
+                "title-1",
+                "accent",
+              ]
+            }
+          };
+        }
+
+        Adw.ViewStackPage page_two {
+          name: "page_two";
+          title: _("Page Two");
+          icon-name: "accessories-dictionary-symbolic";
+
+          child: Gtk.Box page_two_content {
+            orientation: vertical;
+
+            Gtk.Label {
+              hexpand: true;
+              vexpand: true;
+              label: "Page Two";
+
+              styles [
+                "title-1",
+                "accent",
+              ]
+            }
+          };
+        }
+      }
+
+      [bottom]
+      Adw.ViewSwitcher bottom_switcher {
+        visible: false;
+        policy: narrow;
+        stack: view_stack;
+      }
+    }
+  }
+}
+
+menu main-menu {
+  section {
+    item {
+      label: _("Preferences");
+      action: "app.preferences";
+    }
+
+    item {
+      label: _("Keyboard Shortcuts");
+      action: "win.show-help-overlay";
+    }
+
+    item {
+      label: _("About");
+      action: "app.about";
+    }
+  }
+}

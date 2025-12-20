@@ -1,0 +1,20 @@
+/* SPDX-License-Identifier: AGPL-3.0-or-later */
+button.flat.active-nav-btn {
+    background-color: rgba(0, 0, 0, 0.2);
+    border-radius: 6px;
+}
+
+button.flat.active-nav-btn:hover {
+    background-color: rgba(0, 0, 0, 0.3);
+}
+
+/* For dark mode */
+@media (prefers-color-scheme: dark) {
+    button.flat.active-nav-btn {
+        background-color: rgba(255, 255, 255, 0.15);
+    }
+    
+    button.flat.active-nav-btn:hover {
+        background-color: rgba(255, 255, 255, 0.25);
+    }
+}

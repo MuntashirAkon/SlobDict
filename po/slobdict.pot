@@ -1,0 +1,301 @@
+# SOME DESCRIPTIVE TITLE.
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the slobdict package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, YEAR.
+#
+#, fuzzy
+msgid ""
+msgstr ""
+"Project-Id-Version: slobdict\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2025-12-20 14:56-0800\n"
+"PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
+"Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
+"Language-Team: LANGUAGE <LL@li.org>\n"
+"Language: \n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=CHARSET\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
+
+#. Title (center)
+#. Menu items
+#: slobdict/ui/dictionaries_dialog.py:19 slobdict/ui/dictionaries_dialog.py:41
+#: slobdict/ui/main_window.py:109
+msgid "Dictionaries"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:36
+msgid "Add dictionary"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:59
+msgid ""
+"<b>No dictionaries</b>\n"
+"\n"
+"Click \"+\" to import one."
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:110
+#, python-format
+msgid "%d item"
+msgid_plural "%d items"
+msgstr[0] ""
+msgstr[1] ""
+
+#: slobdict/ui/dictionaries_dialog.py:110
+msgid "Items unknown"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:158
+msgid "Select Dictionary"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:162
+msgid "Open"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:163
+#: slobdict/ui/dictionaries_dialog.py:234 slobdict/ui/preferences_dialog.py:153
+#: slobdict/ui/preferences_dialog.py:173
+msgid "Cancel"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:167
+msgid "Slob Dictionaries (*.slob)"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:172
+msgid "All Files"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:184
+msgid "Dictionary imported successfully"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:186
+msgid "Failed to import dictionary"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:205
+#, python-format
+msgid "Items: %s"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:208
+#, python-format
+msgid "Copyright: %s"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:211
+#, python-format
+msgid "License: %s"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:214
+#, python-format
+msgid "Description: %s"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:217
+#, python-format
+msgid "Source: %s"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:220
+msgid "No metadata available"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:225
+#: slobdict/ui/dictionaries_dialog.py:262 slobdict/ui/preferences_dialog.py:215
+msgid "OK"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:232
+msgid "Delete Dictionary?"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:233
+#, python-format
+msgid "Are you sure you want to delete '%s'?"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:235
+msgid "Delete"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:243
+msgid "Dictionary deleted"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:245
+msgid "Failed to delete dictionary"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:260 slobdict/ui/preferences_dialog.py:213
+msgid "Error"
+msgstr ""
+
+#: slobdict/ui/main_window.py:110 slobdict/ui/preferences_dialog.py:19
+#: slobdict/ui/preferences_dialog.py:25
+msgid "Preferences"
+msgstr ""
+
+#: slobdict/ui/main_window.py:111
+msgid "Keyboard Shortcuts"
+msgstr ""
+
+#: slobdict/ui/main_window.py:112
+#, python-format
+msgid "About %s"
+msgstr ""
+
+#: slobdict/ui/main_window.py:114
+msgid "Quit"
+msgstr ""
+
+#: slobdict/ui/main_window.py:147
+msgid "Lookup Dictionary"
+msgstr ""
+
+#: slobdict/ui/main_window.py:157
+msgid "View History"
+msgstr ""
+
+#: slobdict/ui/main_window.py:241 slobdict/ui/main_window.py:317
+msgid "Lookup"
+msgstr ""
+
+#: slobdict/ui/main_window.py:258
+msgid "Filter history..."
+msgstr ""
+
+#: slobdict/ui/main_window.py:279
+#, python-format
+msgid "WebKit unavailable: %s"
+msgstr ""
+
+#: slobdict/ui/main_window.py:326
+msgid "Open Link"
+msgstr ""
+
+#: slobdict/ui/main_window.py:568
+msgid "No history"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:31
+msgid "Appearance"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:36
+msgid "Theme"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:37
+msgid "Choose application theme"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:40
+msgid "System"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:41
+msgid "Light"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:42
+msgid "Dark"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:54
+msgid "Force Dark Mode"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:55
+msgid "Apply dark mode to web content"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:63
+msgid "Content"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:68
+msgid "Load Remote Content"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:69
+msgid "Load images and resources from the internet"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:77
+msgid "Enable JavaScript"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:78
+msgid "Allow scripts in web content"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:86
+msgid "History"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:91
+msgid "Enable History"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:92
+msgid "Save and display search history"
+msgstr ""
+
+#. Clear history button
+#: slobdict/ui/preferences_dialog.py:99
+msgid "Clear History"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:106
+msgid "Data"
+msgstr ""
+
+#. Clear cache button
+#: slobdict/ui/preferences_dialog.py:110
+msgid "Clear Web Cache"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:151
+msgid "Clear History?"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:152
+msgid ""
+"Are you sure you want to clear all search history? This action cannot be "
+"undone."
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:154 slobdict/ui/preferences_dialog.py:174
+msgid "Clear"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:161
+msgid "History cleared"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:163
+msgid "Failed to clear history"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:171
+msgid "Clear Web Cache?"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:172
+msgid ""
+"Are you sure you want to clear the web cache? This will free up disk space."
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:181
+msgid "Cache cleared"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:183
+msgid "Failed to clear cache"
+msgstr ""

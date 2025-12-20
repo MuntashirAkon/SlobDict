@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist gettext-domain="@APP_NAME@">
+	<schema id="@APP_ID@" path="@APP_ROOT@/">
+		<key name="window-width" type="i">
+			<default>1200</default>
+		</key>
+		<key name="window-height" type="i">
+			<default>700</default>
+		</key>
+	</schema>
+</schemalist>
