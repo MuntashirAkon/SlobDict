@@ -16,7 +16,7 @@ python = import('python')
 # Dependencies
 dependency('glib-2.0')
 dependency('gtk4', version: '>=4.4')
-dependency('libadwaita-1', version: '>=1.2')
+dependency('libadwaita-1', version: '>=1.8')
 # dependency('PyGObject-3.0', version: '>= 3.42.0')
 
 # Python installation directory

@@ -1,53 +1,50 @@
 using Gtk 4.0;
+using Adw 1;
 
-ShortcutsWindow help_overlay {
-  modal: true;
+Adw.ShortcutsDialog shortcuts_dialog {
+  can-close: true;
+  title: "Keyboard Shortcuts";
 
-  ShortcutsSection {
-    section-name: 'shortcuts';
-    max-height: 10;
+  Adw.ShortcutsSection {
+    title: C_("shortcut window", "Navigation");
 
-    ShortcutsGroup {
-      title: C_("shortcut window", "Navigation");
-
-      ShortcutsShortcut {
-        title: C_("shortcut window", "Dictionaries");
-        accelerator: "<primary>d";
-        action-name: "app.dictionaries";
-      }
-
-      ShortcutsShortcut {
-        title: C_("shortcut window", "Lookup");
-        accelerator: "<primary>l";
-        action-name: "app.lookup";
-      }
-
-      ShortcutsShortcut {
-        title: C_("shortcut window", "History");
-        accelerator: "<primary>h";
-        action-name: "app.history";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Dictionaries");
+      accelerator: "<primary>d";
+      action-name: "app.dictionaries";
     }
 
-    ShortcutsGroup {
-      title: C_("shortcut window", "General");
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Lookup");
+      accelerator: "<primary>l";
+      action-name: "app.lookup";
+    }
 
-      ShortcutsShortcut {
-        title: C_("shortcut window", "Preferences");
-        accelerator: "<primary>comma";
-        action-name: "app.preferences";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "History");
+      accelerator: "<primary>h";
+      action-name: "app.history";
+    }
+  }
 
-      ShortcutsShortcut {
-        title: C_("shortcut window", "Keyboard Shortcuts");
-        action-name: "win.show-help-overlay";
-      }
+  Adw.ShortcutsSection {
+    title: C_("shortcut window", "General");
 
-      ShortcutsShortcut {
-        title: C_("shortcut window", "Quit");
-        accelerator: "<primary>q";
-        action-name: "app.quit";
-      }
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Preferences");
+      accelerator: "<primary>comma";
+      action-name: "app.preferences";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Keyboard Shortcuts");
+      action-name: "app.shortcuts";
+    }
+
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Quit");
+      accelerator: "<primary>q";
+      action-name: "app.quit";
     }
   }
 }

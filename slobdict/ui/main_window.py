@@ -107,7 +107,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Menu items
         menu.append(_("Dictionaries"), "app.dictionaries")
         menu.append(_("Preferences"), "app.preferences")
-        menu.append(_("Keyboard Shortcuts"), "win.show-help-overlay")
+        menu.append(_("Keyboard Shortcuts"), "app.shortcuts")
         menu.append(_("About %s") % app_label, "app.about")
         menu.append_section(None, Gio.Menu.new())
         menu.append(_("Quit"), "app.quit")
