@@ -76,7 +76,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.history_db = HistoryDB()
 
         # Initialize HTTP server
-        self.http_server = HTTPServer_(self.slob_client, port=8080)
+        self.http_server = HTTPServer_(self.slob_client, port=settings_manager.get('port', 8013))
         self.http_server.start()
         # Store the actual port
         self.http_port = self.http_server.get_port()

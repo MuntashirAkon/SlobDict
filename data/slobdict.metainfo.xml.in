@@ -6,22 +6,24 @@
     <name>@APP_LABEL@</name>
     <url type="homepage">https://github.com/MuntashirAkon/SlobDict</url>
     <url type="bugtracker">https://github.com/MuntashirAkon/SlobDict/issues</url>
-    <summary>A modern dictionary application for Linux</summary>
+    <summary>A modern, lightweight GTK 4 dictionary app for Linux</summary>
     <description>
-        <p>A dictionary application with a modern GTK 4 interface that supports the slob format.</p>
-        <p>Features:</p>
+        <p>Slob Dictionary is an application with a polished GTK 4 interface for exploring slob-formatted dictionaries on Linux.</p>
+        <p>Key features:</p>
         <ul>
-            <li>Multiple dictionaries</li>
-            <li>History</li>
-            <li>Light/dark mode</li>
+            <li>Fsst and simultaneous lookup across multiple dictionary files</li>
+            <li>Persistent lookup history to revisit entries effortlessly</li>
+            <li>Bookmarks for saving favorite definitions and terms</li>
+            <li>Native light/dark mode following your GNOME desktop theme</li>
         </ul>
+        <p>Note: The application requires network access for loading remote contents, but it is disabled by default for privacy.</p>
     </description>
     <update_contact translatable="no">muntashirakon@riseup.net</update_contact>
     <launchable type="desktop-id">@APP_ID@.desktop</launchable>
     <developer_name translatable="no">Muntashir Al-Islam</developer_name>
     <translation type="gettext">@APP_NAME@</translation>
     <releases>
-        <release version="0.1.0" date="2025-12-20">
+        <release version="0.1.0" date="2025-12-21">
             <description translatable="no">
                 <p>Initial release.</p>
             </description>

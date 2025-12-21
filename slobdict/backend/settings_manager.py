@@ -24,6 +24,7 @@ class SettingsManager:
             'load_remote_content': False,
             'enable_history': True,
             'enable_javascript': True,
+            'port': 8013
         }
         
         # Callbacks for settings changes
