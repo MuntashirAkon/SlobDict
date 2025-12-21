@@ -40,7 +40,7 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
 
     def _handle_slob(self, path, query):
         """
-        Handle slob content request: /slob/{source}/{key}
+        Handle slob content request: /slob/{source}/{key}?blob={blob_id}
         Returns raw content with proper content type
         """
         # Parse path: /slob/{source}/{key}
@@ -54,10 +54,11 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
 
         source = unquote(parts[2])
         key = unquote("/".join(parts[3:]))
+        key_id = query.get('blob', [None])[0]
 
         print(f"[HTTP] Looking for: key='{key}', source='{source}'")
 
-        entry = self.slob_client.get_entry(key, source)
+        entry = self.slob_client.get_entry(key, int(key_id) if key_id else None, source)
         if not entry:
             print(f"[HTTP] 404: Entry not found")
             self._not_found()

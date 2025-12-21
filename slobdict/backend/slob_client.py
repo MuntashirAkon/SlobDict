@@ -152,7 +152,7 @@ class SlobClient:
             print(f"Error in _find_in_slob: {e}")
         return results
 
-    def get_entry(self, key_id: str, source: str) -> Optional[Dict[str, str]]:
+    def get_entry(self, key: str, key_id: Optional[int], source: str) -> Optional[Dict[str, str]]:
         """
         Get full entry content from a dictionary.
         
@@ -169,10 +169,24 @@ class SlobClient:
 
         try:
             dictionary = self.dictionaries[source]
-            content_type, content = dictionary['slob'].get(int(key_id))
+            slob = dictionary['slob']
+            if key_id:
+                content_type, content = slob.get(key_id)
+            else:
+                from .slob import find
+                content = None
+                content_type = None
+                for i, item in enumerate(find(key, slob, match_prefix=True)):
+                    _, blob = item
+                    content = blob.content
+                    content_type = blob.content_type
+                    if key == blob.key or len(key) < len(blob.key):
+                        break
+                    
             if content:
                 return {
                     "id": key_id,
+                    "key": key,
                     "content": content,
                     "content_type": content_type,
                     "source": source,

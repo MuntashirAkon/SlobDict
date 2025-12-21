@@ -637,10 +637,11 @@ class MainWindow(Adw.ApplicationWindow):
         if not hasattr(self, 'webview'):
             return
 
+        key = quote(entry.get('title', ''), safe='')
         key_id = quote(entry.get('id', ''), safe='')
         source = quote(entry.get('source', ''), safe='')
         
-        url = f"http://127.0.0.1:{self.http_port}/slob/{source}/{key_id}"
+        url = f"http://127.0.0.1:{self.http_port}/slob/{source}/{key}?blob={key_id}"
         print(f"Loading: {url}")
         self.webview.load_uri(url)
 
