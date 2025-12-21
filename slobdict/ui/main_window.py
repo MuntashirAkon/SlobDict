@@ -9,20 +9,34 @@ from gi.repository import Gtk, Adw, WebKit, Gio, GLib, Gdk
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor
-from urllib.parse import quote
+from urllib.parse import quote, urlparse
 from ..backend.slob_client import SlobClient
 from ..backend.http_server import HTTPServer_
 from ..backend.history_db import HistoryDB
-from ..constants import app_label
+from ..constants import app_label, rootdir
 
 
+@Gtk.Template(resource_path=rootdir + "/ui/window.ui")
 class MainWindow(Adw.ApplicationWindow):
     """Main dictionary window with sidebar, search, and webview."""
 
+    __gtype_name__ = "MainWindow"
+
+    # Template child bindings
+    lookup_btn = Gtk.Template.Child()
+    history_btn = Gtk.Template.Child()
+    search_entry = Gtk.Template.Child()
+    history_search_entry = Gtk.Template.Child()
+    search_bar = Gtk.Template.Child()
+    history_search_bar = Gtk.Template.Child()
+    results_list = Gtk.Template.Child()
+    content_pane = Gtk.Template.Child()
+    split_view = Gtk.Template.Child()
+    menu_button = Gtk.Template.Child()
+
     def __init__(self, application, settings_manager):
         super().__init__(application=application)
-        self.set_title(app_label)
-        self.set_default_size(1200, 700)
+        
         self.settings_manager = settings_manager
 
         # Load custom CSS
@@ -34,6 +48,18 @@ class MainWindow(Adw.ApplicationWindow):
             css_provider,
             Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
         )
+
+        # State
+        self.current_view = "lookup"
+        self.search_query = ""
+        self.row_to_result = {}
+
+        # Track pending tasks for cancellation
+        self.pending_search_task = None
+        self.pending_lookup_task = None
+        self.request_counter = 0
+        self.current_search_request_id = None
+        self.current_lookup_request_id = None
 
         # Initialize slob backend
         self.slob_client = SlobClient(self._on_dictionary_updated)
@@ -51,31 +77,11 @@ class MainWindow(Adw.ApplicationWindow):
         # Thread pool executor for background tasks
         self.executor = ThreadPoolExecutor(max_workers=2)
 
-        # Track pending tasks for cancellation
-        self.pending_search_task = None
-        self.pending_lookup_task = None
-        # Request ID tracking for cancellation
-        self.request_counter = 0
-        self.current_search_request_id = None
-        self.current_lookup_request_id = None
-
-        # State
-        self.current_view = "lookup"  # "lookup" or "history"
-        self.search_query = ""
-        self.row_to_result = {}
-
-        # Main container
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        # Header bar
-        header = self._create_header()
-        vbox.append(header)
-
-        # Split view: sidebar icons + main content
-        split_view = self._create_split_view()
-        vbox.append(split_view)
-
-        self.set_content(vbox)
+        # Setup UI elements
+        self._setup_ui()
+        
+        # Setup menu
+        self._setup_menu()
 
         self.connect("show", self.on_window_shown)
 
@@ -84,21 +90,44 @@ class MainWindow(Adw.ApplicationWindow):
         self.settings_manager.register_callback('enable_javascript', self._on_javascript_changed)
         self.settings_manager.register_callback('load_remote_content', self._on_remote_content_changed)
 
-    def on_window_shown(self, widget):
-        """Focus search entry when window is shown."""
-        self.search_entry.grab_focus()
+    def _setup_ui(self):
+        """Setup UI elements from template."""
+        # Connect button signals
+        self.lookup_btn.connect("clicked", self.on_lookup_clicked)
+        self.history_btn.connect("clicked", self.on_history_clicked)
 
-    def _create_header(self):
-        """Create header bar with menu."""
-        header = Adw.HeaderBar()
+        # Connect search signals
+        self.search_entry.connect("search-changed", self._on_search_changed)
+        self.history_search_entry.connect("search-changed", self._on_history_search_changed)
 
-        # Menu button (hamburger)
-        menu_button = Gtk.MenuButton()
-        menu_button.set_icon_name("open-menu-symbolic")
-        menu_button.set_menu_model(self._create_menu_model())
-        header.pack_end(menu_button)
+        # Connect results list
+        self.results_list.connect("row-selected", self._on_result_selected)
 
-        return header
+        # Create and add webview
+        try:
+            self.webview = WebKit.WebView()
+            self._apply_webview_settings()
+
+            scrolled = Gtk.ScrolledWindow()
+            scrolled.set_child(self.webview)
+            scrolled.set_hexpand(True)
+            scrolled.set_vexpand(True)
+            
+            # Replace the placeholder with actual webview
+            self.content_pane.set_end_child(scrolled)
+        except Exception as e:
+            label = Gtk.Label(label=_("WebKit unavailable: %s") % str(e))
+            label.set_hexpand(True)
+            label.set_vexpand(True)
+            self.content_pane.set_end_child(label)
+
+        # Set lookup as initially active
+        self._set_active_button(self.lookup_btn)
+
+    def _setup_menu(self):
+        """Setup application menu."""
+        if self.menu_button:
+            self.menu_button.set_menu_model(self._create_menu_model())
 
     def _create_menu_model(self):
         """Create main menu model."""
@@ -114,57 +143,6 @@ class MainWindow(Adw.ApplicationWindow):
 
         return menu
 
-    def _create_split_view(self):
-        """Create AdwOverlaySplitView: sidebar + content."""
-        split_view = Adw.OverlaySplitView()
-        split_view.set_max_sidebar_width(50)
-        split_view.set_min_sidebar_width(48)
-        
-        # Sidebar: Icon buttons
-        sidebar = self._create_icon_sidebar()
-        split_view.set_sidebar(sidebar)
-
-        # Content: Paned split (search/history column + webview)
-        content_pane = self._create_content_pane()
-        split_view.set_content(content_pane)
-
-        return split_view
-
-    def _create_icon_sidebar(self):
-        """Create icon button sidebar with square buttons and styling."""
-        sidebar_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-        sidebar_box.set_spacing(8)
-        sidebar_box.set_margin_top(8)
-        sidebar_box.set_margin_bottom(8)
-        sidebar_box.set_margin_start(4)
-        sidebar_box.set_margin_end(4)
-        sidebar_box.set_size_request(48, -1) 
-
-        # Lookup icon
-        self.lookup_btn = Gtk.Button()
-        self.lookup_btn.set_icon_name("system-search-symbolic")
-        self.lookup_btn.set_tooltip_text(_("Lookup Dictionary"))
-        self.lookup_btn.set_has_frame(False)
-        self.lookup_btn.set_size_request(40, 40)
-        self.lookup_btn.add_css_class("flat")
-        self.lookup_btn.connect("clicked", self.on_lookup_clicked)
-        sidebar_box.append(self.lookup_btn)
-
-        # History icon
-        self.history_btn = Gtk.Button()
-        self.history_btn.set_icon_name("document-open-recent-symbolic")
-        self.history_btn.set_tooltip_text(_("View History"))
-        self.history_btn.set_has_frame(False)
-        self.history_btn.set_size_request(40, 40)
-        self.history_btn.add_css_class("flat")
-        self.history_btn.connect("clicked", self.on_history_clicked)
-        sidebar_box.append(self.history_btn)
-
-        # Set lookup as initially active
-        self._set_active_button(self.lookup_btn)
-
-        return sidebar_box
-
     def _set_active_button(self, button):
         """Set button as active and update others."""
         # Remove active class from all buttons
@@ -173,112 +151,6 @@ class MainWindow(Adw.ApplicationWindow):
         
         # Add active class to current button
         button.add_css_class("active-nav-btn")
-
-    def _create_content_pane(self):
-        """Create main content: resizable paned split."""
-        # Paned widget (horizontal, left/right resizable)
-        paned = Gtk.Paned(orientation=Gtk.Orientation.HORIZONTAL)
-        paned.set_position(400)  # Initial position
-
-        # Left pane: Search/History column
-        left_pane = self._create_left_pane()
-        paned.set_start_child(left_pane)
-
-        # Right pane: Webview
-        right_pane = self._create_webview_pane()
-        paned.set_end_child(right_pane)
-
-        # Make resizable and give focus to right pane
-        paned.set_resize_start_child(False)
-        paned.set_shrink_start_child(False)
-        paned.set_resize_end_child(True)
-        paned.set_shrink_end_child(False)
-
-        return paned
-
-    def _create_left_pane(self):
-        """Create left pane: search/history column."""
-        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
-
-        # Toolbar for search
-        toolbar_view = Adw.ToolbarView()
-
-        # Search bar (shown in "lookup" mode)
-        self.search_bar = self._create_search_bar()
-        toolbar_view.add_top_bar(self.search_bar)
-
-        # History search bar (shown in history mode)
-        self.history_search_bar = self._create_history_search_bar()
-        self.history_search_bar.set_visible(False)
-        toolbar_view.add_top_bar(self.history_search_bar)
-
-        # Results/History list
-        self.results_list = Gtk.ListBox()
-        self.results_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.results_list.set_css_classes(["navigation-sidebar"])
-        self.results_list.connect("row-selected", self._on_result_selected)
-
-        # Scrollable container
-        scrolled = Gtk.ScrolledWindow()
-        scrolled.set_child(self.results_list)
-        scrolled.set_vexpand(True)
-        scrolled.set_hexpand(True)
-
-        toolbar_view.set_content(scrolled)
-        return toolbar_view
-
-    def _create_search_bar(self):
-        """Create search entry."""
-        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox.set_spacing(8)
-        hbox.set_margin_top(8)
-        hbox.set_margin_bottom(8)
-        hbox.set_margin_start(8)
-        hbox.set_margin_end(8)
-
-        self.search_entry = Gtk.SearchEntry()
-        self.search_entry.set_placeholder_text(_("Lookup"))
-        self.search_entry.set_hexpand(True)
-        self.search_entry.connect("search-changed", self._on_search_changed)
-        hbox.append(self.search_entry)
-
-        return hbox
-
-    def _create_history_search_bar(self):
-        """Create history search entry."""
-        hbox = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
-        hbox.set_spacing(8)
-        hbox.set_margin_top(8)
-        hbox.set_margin_bottom(8)
-        hbox.set_margin_start(8)
-        hbox.set_margin_end(8)
-
-        self.history_search_entry = Gtk.SearchEntry()
-        self.history_search_entry.set_placeholder_text(_("Filter history..."))
-        self.history_search_entry.set_hexpand(True)
-        self.history_search_entry.connect("search-changed", self._on_history_search_changed)
-        hbox.append(self.history_search_entry)
-
-        return hbox
-
-    def _create_webview_pane(self):
-        """Create webview pane for rendering dictionary content."""
-        try:
-            self.webview = WebKit.WebView()
-            # Apply user preferences
-            self._apply_webview_settings()
-
-            scrolled = Gtk.ScrolledWindow()
-            scrolled.set_child(self.webview)
-            scrolled.set_hexpand(True)
-            scrolled.set_vexpand(True)
-            return scrolled
-        except Exception as e:
-            label = Gtk.Label()
-            label.set_markup(_("WebKit unavailable: %s") % str(e))
-            label.set_hexpand(True)
-            label.set_vexpand(True)
-            return label
 
     def _apply_webview_settings(self):
         """Apply user preferences to WebView."""
@@ -291,7 +163,8 @@ class MainWindow(Adw.ApplicationWindow):
         if force_dark:
             from ..utils.utils import load_dark_mode_css
             self.webview.load_html(f"<html><body><style>{load_dark_mode_css()}</style></body></html>")
-        else: self.webview.load_html("<html></html>")
+        else:
+            self.webview.load_html("<html></html>")
         
         # Enable/disable JavaScript
         enable_js = self.settings_manager.get('enable_javascript', True)
@@ -303,7 +176,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Context menu
         self.webview.connect("context-menu", self._on_context_menu)
-    
+
     def _on_context_menu(self, webview, context_menu, hit_test_result):
         """Handle WebView context menu customization."""
         try:
@@ -327,7 +200,7 @@ class MainWindow(Adw.ApplicationWindow):
                 )
                 context_menu.append(open_link_item)
             
-            return False  # Prevent default menu
+            return False
         except Exception as e:
             print(f"Error in context menu: {e}")
             return False
@@ -364,7 +237,6 @@ class MainWindow(Adw.ApplicationWindow):
                 return
             
             # Parse URL to get base path
-            from urllib.parse import urlparse
             parsed = urlparse(current_uri)
             
             # Get the base path (everything except the last part)
@@ -395,9 +267,9 @@ class MainWindow(Adw.ApplicationWindow):
                 if force_dark:
                     from ..utils.css_utils import load_dark_mode_css
                     self.webview.load_html(f"<html><body><style>{load_dark_mode_css()}</style></body></html>")
-                else: self.webview.load_html("<html></html>")
+                else:
+                    self.webview.load_html("<html></html>")
             else:
-                print(f"URL: {self.webview.get_uri()}")
                 self.webview.reload()
 
     def _on_javascript_changed(self, key, value):
@@ -422,6 +294,10 @@ class MainWindow(Adw.ApplicationWindow):
             self._on_search_changed(self.search_entry)
         if hasattr(self, 'history_search_entry'):
             self._on_history_search_changed(self.history_search_entry)
+
+    def on_window_shown(self, widget):
+        """Focus search entry when window is shown."""
+        self.search_entry.grab_focus()
 
     def on_lookup_clicked(self, button):
         """Switch to lookup view."""
@@ -465,7 +341,6 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_history_search_changed(self, entry):
         """Handle history search text changes."""
-        # Only filter in history mode
         if self.current_view != "history":
             return
         
@@ -484,9 +359,13 @@ class MainWindow(Adw.ApplicationWindow):
     
     def _populate_results(self, results: List[Dict]):
         """Populate results list."""
-        # Disconnect signal temporarily to avoid triggering row-selected
-        self.results_list.disconnect_by_func(self._on_result_selected)
-
+        # Only disconnect if signal is already connected
+        try:
+            self.results_list.disconnect_by_func(self._on_result_selected)
+        except TypeError:
+            # Signal not connected yet, that's fine
+            pass
+        
         self.row_to_result.clear()
 
         # Clear existing rows
@@ -525,6 +404,7 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Reconnect signal after populating
         self.results_list.connect("row-selected", self._on_result_selected)
+
 
     def _populate_history(self, filter_query: str = ""):
         """Populate history list with optional filtering."""

@@ -1,116 +1,111 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $ExampleMainWindow: Adw.ApplicationWindow {
-  styles [
-    "devel",
-  ]
+template $MainWindow : Adw.ApplicationWindow {
+  modal: false;
+  title: "Slob Dictionary";
+  default-width: 1200;
+  default-height: 700;
 
-  title: _("My Application");
-  default-width: 800;
-  default-height: 600;
+  Gtk.Box {
+    orientation: vertical;
 
-  Adw.Breakpoint {
-    condition ("max-width: 400px")
+    Adw.HeaderBar {
 
-    setters {
-      top_swicher.visible: false;
-      bottom_switcher.visible: true;
+      [end]
+      Gtk.MenuButton menu_button {
+        icon-name: "open-menu-symbolic";
+      }
     }
-  }
 
-  Adw.ToastOverlay toast_overlay {
-    Adw.ToolbarView main_view {
-      [top]
-      Adw.HeaderBar titlebar {
-        centering-policy: strict;
+    Adw.OverlaySplitView split_view {
+      max-sidebar-width: 50;
+      min-sidebar-width: 48;
 
-        [title]
-        Adw.ViewSwitcher top_swicher {
-          stack: view_stack;
-          policy: wide;
+      [sidebar]
+      Gtk.Box {
+        orientation: vertical;
+        spacing: 8;
+        margin-top: 8;
+        margin-bottom: 8;
+        margin-start: 4;
+        margin-end: 4;
+        width-request: 48;
+
+        Gtk.Button lookup_btn {
+          icon-name: "system-search-symbolic";
+          tooltip-text: _("Lookup Dictionary");
+          has-frame: false;
+          width-request: 40;
+          height-request: 40;
+          css-classes: ["flat"];
         }
 
-        [end]
-        Gtk.MenuButton {
-          tooltip-text: _("Main Menu");
-          icon-name: "open-menu-symbolic";
-          menu-model: main-menu;
+        Gtk.Button history_btn {
+          icon-name: "document-open-recent-symbolic";
+          tooltip-text: _("View History");
+          has-frame: false;
+          width-request: 40;
+          height-request: 40;
+          css-classes: ["flat"];
         }
       }
 
-      Adw.ViewStack view_stack {
-        vexpand: true;
-        hexpand: true;
+      [content]
+      Gtk.Paned content_pane {
+        orientation: horizontal;
+        position: 400;
 
-        Adw.ViewStackPage page_one {
-          name: "page_one";
-          title: _("Page One");
-          icon-name: "accessories-dictionary-symbolic";
+        // Left pane - search/history list
+        Adw.ToolbarView {
+          [top]
+          Gtk.Box search_bar {
+            orientation: horizontal;
+            spacing: 8;
+            margin-top: 8;
+            margin-bottom: 8;
+            margin-start: 8;
+            margin-end: 8;
 
-          child: Gtk.Box page_one_content {
-            orientation: vertical;
-
-            Gtk.Label {
+            Gtk.SearchEntry search_entry {
               hexpand: true;
-              vexpand: true;
-              label: "Page One";
-
-              styles [
-                "title-1",
-                "accent",
-              ]
+              placeholder-text: _("Lookup");
             }
-          };
-        }
+          }
 
-        Adw.ViewStackPage page_two {
-          name: "page_two";
-          title: _("Page Two");
-          icon-name: "accessories-dictionary-symbolic";
+          [top]
+          Gtk.Box history_search_bar {
+            orientation: horizontal;
+            spacing: 8;
+            margin-top: 8;
+            margin-bottom: 8;
+            margin-start: 8;
+            margin-end: 8;
+            visible: false;
 
-          child: Gtk.Box page_two_content {
-            orientation: vertical;
-
-            Gtk.Label {
+            Gtk.SearchEntry history_search_entry {
               hexpand: true;
-              vexpand: true;
-              label: "Page Two";
-
-              styles [
-                "title-1",
-                "accent",
-              ]
+              placeholder-text: _("Filter history...");
             }
-          };
+          }
+
+          Gtk.ScrolledWindow {
+            hexpand: true;
+            vexpand: true;
+
+            Gtk.ListBox results_list {
+              selection-mode: single;
+              css-classes: ["navigation-sidebar"];
+            }
+          }
+        }
+
+        // Right pane - webview placeholder
+        Gtk.Box webview_placeholder {
+          hexpand: true;
+          vexpand: true;
         }
       }
-
-      [bottom]
-      Adw.ViewSwitcher bottom_switcher {
-        visible: false;
-        policy: narrow;
-        stack: view_stack;
-      }
-    }
-  }
-}
-
-menu main-menu {
-  section {
-    item {
-      label: _("Preferences");
-      action: "app.preferences";
-    }
-
-    item {
-      label: _("Keyboard Shortcuts");
-      action: "win.show-help-overlay";
-    }
-
-    item {
-      label: _("About");
-      action: "app.about";
     }
   }
 }
