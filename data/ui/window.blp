@@ -8,103 +8,99 @@ template $MainWindow : Adw.ApplicationWindow {
   default-height: 700;
 
   Gtk.Box {
-    orientation: vertical;
+    orientation: horizontal;
+    hexpand: true;
+    vexpand: true;
 
-    Adw.HeaderBar {
+    // Left sidebar
+    Adw.ToolbarView sidebar_toolbar_view {
+      [top]
+      Adw.HeaderBar sidebar_header {
+        show-end-title-buttons: false;
+        show-start-title-buttons: false;
+        
+        title-widget: Adw.WindowTitle {
+          title: _("Lookup");
+          subtitle: "";
+        };
 
-      [end]
-      Gtk.MenuButton menu_button {
-        icon-name: "open-menu-symbolic";
+        [end]
+        Gtk.MenuButton sidebar_menu_button {
+          icon-name: "open-menu-symbolic";
+        }
+      }
+
+      Gtk.Box {
+        orientation: vertical;
+        hexpand: false;
+        vexpand: true;
+
+        // Search entry for lookup
+        Gtk.SearchEntry search_entry {
+          margin-top: 8;
+          margin-bottom: 8;
+          margin-start: 8;
+          margin-end: 8;
+          placeholder-text: _("Lookup...");
+        }
+
+        // Search entry for history
+        Gtk.SearchEntry history_search_entry {
+          margin-top: 8;
+          margin-bottom: 8;
+          margin-start: 8;
+          margin-end: 8;
+          placeholder-text: _("Filter history...");
+          visible: false;
+        }
+
+        // Results list
+        Gtk.ScrolledWindow {
+          hexpand: true;
+          vexpand: true;
+          width-request: 300;
+
+          Gtk.ListBox results_list {
+            selection-mode: single;
+            css-classes: ["navigation-sidebar"];
+          }
+        }
       }
     }
 
-    Adw.OverlaySplitView split_view {
-      max-sidebar-width: 50;
-      min-sidebar-width: 48;
+    // Right content area
+    Adw.ToolbarView content_toolbar_view {
+      [top]
+      Adw.HeaderBar content_header {
+        show-end-title-buttons: true;
+        show-start-title-buttons: false;
+        css-classes: ["base-background"];
+        
+        [start]
+        Gtk.Box nav_buttons_box {
+          spacing: 0;
 
-      [sidebar]
-      Gtk.Box {
-        orientation: vertical;
-        spacing: 8;
-        margin-top: 8;
-        margin-bottom: 8;
-        margin-start: 4;
-        margin-end: 4;
-        width-request: 48;
+          Gtk.Button back_button {
+            icon-name: "go-previous-symbolic";
+            tooltip-text: _("Previous");
+          }
 
-        Gtk.Button lookup_btn {
-          icon-name: "system-search-symbolic";
-          tooltip-text: _("Lookup Dictionary");
-          has-frame: false;
-          width-request: 40;
-          height-request: 40;
-          css-classes: ["flat"];
+          Gtk.Button forward_button {
+            icon-name: "go-next-symbolic";
+            tooltip-text: _("Next");
+          }
         }
 
-        Gtk.Button history_btn {
-          icon-name: "document-open-recent-symbolic";
-          tooltip-text: _("View History");
-          has-frame: false;
-          width-request: 40;
-          height-request: 40;
-          css-classes: ["flat"];
-        }
+        title-widget: Adw.WindowTitle {
+          title: "Slob Dictionary";
+          subtitle: "";
+        };
       }
 
-      [content]
-      Gtk.Paned content_pane {
-        orientation: horizontal;
-        position: 400;
-
-        // Left pane - search/history list
-        Adw.ToolbarView {
-          [top]
-          Gtk.Box search_bar {
-            orientation: horizontal;
-            spacing: 8;
-            margin-top: 8;
-            margin-bottom: 8;
-            margin-start: 8;
-            margin-end: 8;
-
-            Gtk.SearchEntry search_entry {
-              hexpand: true;
-              placeholder-text: _("Lookup");
-            }
-          }
-
-          [top]
-          Gtk.Box history_search_bar {
-            orientation: horizontal;
-            spacing: 8;
-            margin-top: 8;
-            margin-bottom: 8;
-            margin-start: 8;
-            margin-end: 8;
-            visible: false;
-
-            Gtk.SearchEntry history_search_entry {
-              hexpand: true;
-              placeholder-text: _("Filter history...");
-            }
-          }
-
-          Gtk.ScrolledWindow {
-            hexpand: true;
-            vexpand: true;
-
-            Gtk.ListBox results_list {
-              selection-mode: single;
-              css-classes: ["navigation-sidebar"];
-            }
-          }
-        }
-
-        // Right pane - webview placeholder
-        Gtk.Box webview_placeholder {
-          hexpand: true;
-          vexpand: true;
-        }
+      Gtk.Box webview_container {
+        orientation: vertical;
+        hexpand: true;
+        vexpand: true;
       }
     }
   }

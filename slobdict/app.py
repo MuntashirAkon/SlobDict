@@ -87,15 +87,13 @@ class SlobDictApplication(Adw.Application):
 
     def on_search(self, action, param):
         """Handle search action (Ctrl+L)."""
-        print("Lookup should be displayed")
         window = self.get_active_window()
-        window.on_lookup_clicked(window.lookup_btn)
+        window.action_lookup(action, param)
 
     def on_history(self, action, param):
         """Handle history action (Ctrl+H)."""
-        print("History should be displayed")
         window = self.get_active_window()
-        window.on_history_clicked(window.history_btn)
+        window.action_history(action, param)
 
     def on_about(self, action, param):
         """Open about dialog."""

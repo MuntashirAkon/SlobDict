@@ -23,16 +23,18 @@ class MainWindow(Adw.ApplicationWindow):
     __gtype_name__ = "MainWindow"
 
     # Template child bindings
-    lookup_btn = Gtk.Template.Child()
-    history_btn = Gtk.Template.Child()
+    sidebar_toolbar_view = Gtk.Template.Child()
+    sidebar_header = Gtk.Template.Child()
+    sidebar_menu_button = Gtk.Template.Child()
+    content_toolbar_view = Gtk.Template.Child()
+    content_header = Gtk.Template.Child()
+    back_button = Gtk.Template.Child()
+    forward_button = Gtk.Template.Child()
+    nav_buttons_box = Gtk.Template.Child()
     search_entry = Gtk.Template.Child()
     history_search_entry = Gtk.Template.Child()
-    search_bar = Gtk.Template.Child()
-    history_search_bar = Gtk.Template.Child()
     results_list = Gtk.Template.Child()
-    content_pane = Gtk.Template.Child()
-    split_view = Gtk.Template.Child()
-    menu_button = Gtk.Template.Child()
+    webview_container = Gtk.Template.Child()
 
     def __init__(self, application, settings_manager):
         super().__init__(application=application)
@@ -53,6 +55,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.current_view = "lookup"
         self.search_query = ""
         self.row_to_result = {}
+        self.navigation_history = []  # For back/forward
+        self.current_history_index = -1
+        self.current_entry = None  # Track current entry being displayed
 
         # Track pending tasks for cancellation
         self.pending_search_task = None
@@ -93,8 +98,8 @@ class MainWindow(Adw.ApplicationWindow):
     def _setup_ui(self):
         """Setup UI elements from template."""
         # Connect button signals
-        self.lookup_btn.connect("clicked", self.on_lookup_clicked)
-        self.history_btn.connect("clicked", self.on_history_clicked)
+        self.back_button.connect("clicked", self._on_back_clicked)
+        self.forward_button.connect("clicked", self._on_forward_clicked)
 
         # Connect search signals
         self.search_entry.connect("search-changed", self._on_search_changed)
@@ -113,25 +118,30 @@ class MainWindow(Adw.ApplicationWindow):
             scrolled.set_hexpand(True)
             scrolled.set_vexpand(True)
             
-            # Replace the placeholder with actual webview
-            self.content_pane.set_end_child(scrolled)
+            self.webview_container.append(scrolled)
         except Exception as e:
             label = Gtk.Label(label=_("WebKit unavailable: %s") % str(e))
             label.set_hexpand(True)
             label.set_vexpand(True)
-            self.content_pane.set_end_child(label)
+            self.webview_container.append(label)
 
-        # Set lookup as initially active
-        self._set_active_button(self.lookup_btn)
+        # Update next/prev buttons
+        self._update_nav_buttons()
 
     def _setup_menu(self):
         """Setup application menu."""
-        if self.menu_button:
-            self.menu_button.set_menu_model(self._create_menu_model())
+        if self.sidebar_menu_button:
+            self.sidebar_menu_button.set_menu_model(self._create_menu_model())
+
 
     def _create_menu_model(self):
         """Create main menu model."""
         menu = Gio.Menu()
+
+        # View mode items
+        menu.append(_("Lookup"), "app.lookup")
+        menu.append(_("History"), "app.history")
+        menu.append_section(None, Gio.Menu.new())
 
         # Menu items
         menu.append(_("Dictionaries"), "app.dictionaries")
@@ -143,14 +153,14 @@ class MainWindow(Adw.ApplicationWindow):
 
         return menu
 
-    def _set_active_button(self, button):
-        """Set button as active and update others."""
-        # Remove active class from all buttons
-        self.lookup_btn.remove_css_class("active-nav-btn")
-        self.history_btn.remove_css_class("active-nav-btn")
-        
-        # Add active class to current button
-        button.add_css_class("active-nav-btn")
+    def _update_sidebar_title(self):
+        """Update sidebar title based on current view."""
+        title_widget = self.sidebar_header.get_title_widget()
+        if isinstance(title_widget, Adw.WindowTitle):
+            if self.current_view == "lookup":
+                title_widget.set_title(_("Lookup"))
+            else:
+                title_widget.set_title(_("History"))
 
     def _apply_webview_settings(self):
         """Apply user preferences to WebView."""
@@ -231,27 +241,14 @@ class MainWindow(Adw.ApplicationWindow):
             if not selected_text or selected_text.strip() == "":
                 return
             
-            # Get current URI and extract base path
-            current_uri = self.webview.get_uri()
-            if not current_uri or current_uri == "about:blank":
-                return
+            # Switch to lookup view and search
+            self.current_view = "lookup"
+            self._update_sidebar_title()
+            self.search_entry.set_visible(True)
+            self.history_search_entry.set_visible(False)
             
-            # Parse URL to get base path
-            parsed = urlparse(current_uri)
-            
-            # Get the base path (everything except the last part)
-            path_parts = parsed.path.rstrip('/').rsplit('/', 1)
-            if len(path_parts) == 2:
-                base_path = path_parts[0]
-            else:
-                base_path = parsed.path.rstrip('/')
-            
-            # Build new URL
-            new_path = f"{base_path}/{selected_text.strip()}"
-            new_uri = f"{parsed.scheme}://{parsed.netloc}{new_path}"
-            
-            # Load the new URL
-            self.webview.load_uri(new_uri)
+            # Set search text
+            self.search_entry.set_text(selected_text.strip())
         except Exception as e:
             print(f"Error in lookup: {e}")
 
@@ -299,25 +296,40 @@ class MainWindow(Adw.ApplicationWindow):
         """Focus search entry when window is shown."""
         self.search_entry.grab_focus()
 
-    def on_lookup_clicked(self, button):
-        """Switch to lookup view."""
-        self._set_active_button(button)
-        self.current_view = "lookup"
-        self.search_bar.set_visible(True)
-        self.history_search_bar.set_visible(False)
-        self.search_entry.grab_focus()
-        self._populate_results([])
-        self._on_dictionary_updated()
+    def _on_back_clicked(self, button):
+        """Navigate to previous entry in history."""
+        if hasattr(self, 'webview'):
+            self.webview.go_back()
+            subtitle = ""
+            if self.current_history_index > 0:
+                self.current_history_index -= 1
+                entry = self.navigation_history[self.current_history_index]
+                subtitle = entry.get('title', '')
+            self._update_content_subtitle(subtitle)
+            self._update_nav_buttons()
 
-    def on_history_clicked(self, button):
-        """Switch to history view."""
-        self._set_active_button(button)
-        self.current_view = "history"
-        self.search_bar.set_visible(False)
-        self.history_search_bar.set_visible(True)
-        self.history_search_entry.grab_focus()
-        self._populate_history()
-        self._on_dictionary_updated()
+    def _on_forward_clicked(self, button):
+        """Navigate to next entry in history."""
+        if hasattr(self, 'webview'):
+            self.webview.go_forward()
+            subtitle = ""
+            if self.current_history_index < len(self.navigation_history) - 1:
+                self.current_history_index += 1
+                entry = self.navigation_history[self.current_history_index]
+                subtitle = entry.get('title', '')
+            self._update_content_subtitle(subtitle)
+            self._update_nav_buttons()
+
+    def _update_nav_buttons(self):
+        """Update back/forward button visibility and sensitivity."""
+        can_go_back = False
+        can_go_forward = False
+        if hasattr(self, 'webview'):
+            can_go_back = self.webview.can_go_back()
+            can_go_forward = self.webview.can_go_forward()
+
+        self.back_button.set_sensitive(can_go_back)
+        self.forward_button.set_sensitive(can_go_forward)
 
     def _on_search_changed(self, entry):
         """Handle search text changes."""
@@ -512,7 +524,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Add to history
         self.history_db.add_entry(key_id, key, source, dictionary)
 
-    def _render_entry(self, entry: Dict):
+    def _render_entry(self, entry: Dict, update_history: bool = True):
         """Render entry in webview."""
         if not hasattr(self, 'webview'):
             return
@@ -523,11 +535,52 @@ class MainWindow(Adw.ApplicationWindow):
         
         url = f"http://127.0.0.1:{self.http_port}/slob/{source}/{key}?blob={key_id}"
         print(f"Loading: {url}")
+        
+        # Update navigation history if this is a new entry (not from back/forward)
+        if update_history:
+            # Remove any forward history if we're adding a new entry
+            if self.current_history_index < len(self.navigation_history) - 1:
+                self.navigation_history = self.navigation_history[:self.current_history_index + 1]
+            
+            self.navigation_history.append(entry)
+            self.current_history_index = len(self.navigation_history) - 1
+            self._update_nav_buttons()
+        
+        # Update header bar subtitle with current key
+        self._update_content_subtitle(entry.get('title', ''))
+        
+        self.current_entry = entry
         self.webview.load_uri(url)
+
+    def _update_content_subtitle(self, subtitle: str):
+        """Update content subtitle"""
+        title_widget = self.content_header.get_title_widget()
+        if isinstance(title_widget, Adw.WindowTitle):
+            title_widget.set_subtitle(subtitle)
 
     def _on_close(self, window):
         """Handle window close."""
         self.http_server.stop()
         self.slob_client.close()
         return False
-        
+
+    # These methods should be registered as actions in your application class
+    def action_lookup(self, action, param):
+        """Switch to lookup view - register as app.lookup action."""
+        self.current_view = "lookup"
+        self._update_sidebar_title()
+        self.search_entry.set_visible(True)
+        self.history_search_entry.set_visible(False)
+        self.search_entry.grab_focus()
+        self._populate_results([])
+        self._on_dictionary_updated()
+
+    def action_history(self, action, param):
+        """Switch to history view - register as app.history action."""
+        self.current_view = "history"
+        self._update_sidebar_title()
+        self.search_entry.set_visible(False)
+        self.history_search_entry.set_visible(True)
+        self.history_search_entry.grab_focus()
+        self._populate_history()
+        self._on_dictionary_updated()
