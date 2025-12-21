@@ -17,14 +17,13 @@ class SlobClient:
         self.load_dictionaries()
 
     def load_dictionaries(self):
-        """Load dictionaries from config directory."""
-        from .slob_wrapper import SlobWrapper
-        
+        """Load dictionaries from config directory."""        
         # Clear existing dictionaries
         self.close()
         self.dictionaries = {}
 
         # Load enabled dictionaries from manager
+        from .slob import Slob
         for dict_info in self.dict_manager.get_dictionaries():
             if not dict_info.get('enabled', True):
                 continue
@@ -36,7 +35,7 @@ class SlobClient:
                 try:
                     self.dictionaries[dict_info['id']] = {
                         'label': display_name,
-                        'slob': SlobWrapper(dict_path),
+                        'slob': Slob(str(dict_path)),
                     }
                     print(f"✓ Loaded: {display_name}")
                 except Exception as e:
@@ -123,7 +122,7 @@ class SlobClient:
                 matches = self._find_in_slob(dictionary['slob'], query, limit, request_id)
                 for match in matches:
                     results.append({
-                        "title": match,
+                        "title": match[1],
                         "source": dict_id,
                         "dictionary": dictionary['label']
                     })
@@ -132,22 +131,21 @@ class SlobClient:
 
         return results[:limit]
 
-    def _find_in_slob(self, dictionary, query: str, limit: int, request_id: int = None) -> List[str]:
+    def _find_in_slob(self, slob, query: str, limit: int, request_id: int = None) -> List[str]:
         """Find entries in a slob dictionary with cancellation support."""
         results = []
         try:
-            count = 0
-            for entry in dictionary:
+            from .slob import find
+            for i, item in enumerate(find(query, slob, match_prefix=True)):
                 # Check cancellation frequently
                 if request_id and request_id != self.current_request_id:
                     print(f"Search cancelled during iteration (request {request_id})")
                     return []
-                
-                if query.lower() in entry.key.lower():
-                    results.append(entry.key)
-                    count += 1
-                    if count >= limit:
-                        break
+
+                _, blob = item
+                results.append((blob.id, blob.key, blob.content_type))
+                if i == limit:
+                    break
         except Exception as e:
             print(f"Error in _find_in_slob: {e}")
         return results
@@ -177,7 +175,8 @@ class SlobClient:
             if content:
                 return {
                     "key": key,
-                    "content": content,
+                    "content": content[2],
+                    "content_type": content[3],
                     "source": source,
                     "dictionary": dictionary['label'],
                 }
@@ -186,19 +185,17 @@ class SlobClient:
 
         return None
 
-    def _get_from_slob(self, dictionary, key: str, request_id: int = None) -> Optional[str]:
+    def _get_from_slob(self, slob, key: str, request_id: int = None) -> Optional[tuple]:
         """Get entry content from slob with cancellation support."""
         try:
-            for entry in dictionary:
+            from .slob import find
+            for i, item in enumerate(find(key, slob, match_prefix=True)):
                 # Check cancellation
                 if request_id and request_id != self.current_request_id:
                     return None
-                
-                if entry.key.lower() == key.lower():
-                    content = entry.content
-                    if isinstance(content, bytes):
-                        return content.decode('utf-8')
-                    return content
+
+                _, blob = item
+                return (blob.id, blob.key, blob.content, blob.content_type)
         except Exception as e:
             print(f"Error in _get_from_slob: {e}")
         

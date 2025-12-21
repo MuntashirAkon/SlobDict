@@ -477,7 +477,7 @@ class MainWindow(Adw.ApplicationWindow):
         """Search task with cancellation support."""
         # Mark this as current request in slob client
         self.slob_client.set_current_request(request_id)
-        results = self.slob_client.search(query, limit=50, request_id=request_id)
+        results = self.slob_client.search(query, limit=150, request_id=request_id)
         
         # Only update UI if this request is still current
         if request_id == self.current_search_request_id:

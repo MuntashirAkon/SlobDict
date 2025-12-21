@@ -63,21 +63,15 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
             self._not_found()
             return
 
-        content = entry.get("content", "")
+        content = entry["content"]
+        content_type = entry["content_type"]
         
-        # Determine content type based on file extension or content
-        content_type = "text/plain; charset=utf-8"
-        
-        if isinstance(content, bytes):
-            content_str = content.decode('utf-8')
-        else:
-            content_str = content
-
         # Detect content type from key extension or content
         if key.endswith('.css'):
             content_type = "text/css; charset=utf-8"
             if self.dark_mode:
-                content_str = f"{content_str}\n{self.dark_mode_css}"
+                content_str = content.decode('utf-8') if isinstance(content, bytes) else content
+                content = f"{content_str}\n{self.dark_mode_css}"
         elif key.endswith('.js'):
             content_type = "application/javascript; charset=utf-8"
         elif key.endswith('.png'):
@@ -94,10 +88,8 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
             content_type = "application/x-font-opentype"
         elif key.endswith('.ico'):
             content_type = "image/x-icon"
-        elif content_str.startswith("<"):
-            content_type = "text/html; charset=utf-8"
 
-        content_bytes = content_str.encode('utf-8') if isinstance(content_str, str) else content_str
+        content_bytes = content.encode('utf-8') if isinstance(content, str) else content
 
         print(f"[HTTP] 200: Serving {content_type} ({len(content_bytes)} bytes) for {key}")
 
