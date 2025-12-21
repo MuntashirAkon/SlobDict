@@ -98,7 +98,7 @@ class DictionariesDialog(Adw.Window):
         left_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         
         # Name
-        name_label = Gtk.Label(label=dict_info['filename'])
+        name_label = Gtk.Label(label=dict_info['label'])
         name_label.set_css_classes(["heading"])
         name_label.set_halign(Gtk.Align.START)
         left_box.append(name_label)
@@ -106,7 +106,7 @@ class DictionariesDialog(Adw.Window):
         # Item count
         from gettext import ngettext
 
-        item_count = dict_info.get('item_count', -1)
+        item_count = dict_info.get('blob_count', -1)
         count_text = ngettext("%d item", "%d items", item_count) % item_count if item_count >= 0 else _("Items unknown")
         count_label = Gtk.Label(label=count_text)
         count_label.set_css_classes(["dim-label", "caption"])
@@ -195,26 +195,24 @@ class DictionariesDialog(Adw.Window):
 
     def _on_info_clicked(self, button, dict_info):
         """Handle info button click."""
+        from ..utils import slob_tags
         dialog = Adw.MessageDialog(transient_for=self.get_root())
-        dialog.set_heading(dict_info['filename'])
+        dialog.set_heading(dict_info[slob_tags.TAG_LABEL])
         
         # Build info text
         info_parts = []
         
-        if dict_info.get('item_count'):
-            info_parts.append(_("Items: %s") % dict_info['item_count'])
+        if dict_info.get('blob_count'):
+            info_parts.append(_("Items: %s") % dict_info['blob_count'])
         
-        if dict_info.get('copyright'):
-            info_parts.append(_("Copyright: %s") % dict_info['copyright'])
+        if slob_tags.TAG_COPYRIGHT in dict_info:
+            info_parts.append(_("Copyright: %s") % dict_info[slob_tags.TAG_COPYRIGHT])
         
-        if dict_info.get('license'):
-            info_parts.append(_("License: %s") % dict_info['license'])
+        if slob_tags.TAG_LICENSE_NAME in dict_info:
+            info_parts.append(_("License: %s") % dict_info[slob_tags.TAG_LICENSE_NAME])
         
-        if dict_info.get('description'):
-            info_parts.append(_("Description: %s") % dict_info['description'])
-        
-        if dict_info.get('source'):
-            info_parts.append(_("Source: %s") % dict_info['source'])
+        if slob_tags.TAG_SOURCE in dict_info:
+            info_parts.append(_("Source: %s") % dict_info[slob_tags.TAG_SOURCE])
         
         if not info_parts:
             info_text = _("No metadata available")

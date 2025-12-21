@@ -5,12 +5,7 @@ import shutil
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import json
-
-try:
-    import slob
-except ImportError:
-    slob = None
-
+import slob
 
 class DictionaryManager:
     """Manages dictionary files and metadata."""
@@ -64,7 +59,7 @@ class DictionaryManager:
             shutil.copy2(source, dest)
             
             # Extract metadata
-            metadata = self._extract_metadata(str(dest))
+            metadata = self._extract_metadata(str(dest), source.stem)
             if metadata:
                 self.metadata[source.name] = metadata
                 self.metadata[source.name]['enabled'] = True
@@ -76,7 +71,7 @@ class DictionaryManager:
             print(f"Error importing dictionary: {e}")
             return None
 
-    def _extract_metadata(self, dict_path: str) -> Optional[Dict[str, Any]]:
+    def _extract_metadata(self, dict_path: str, stem: str) -> Optional[Dict[str, Any]]:
         """
         Extract metadata from a slob file.
         
@@ -86,49 +81,18 @@ class DictionaryManager:
         Returns:
             Dictionary containing metadata
         """
-        if not slob:
-            return self._extract_metadata_fallback(dict_path)
-        
-        try:
-            with slob.open(dict_path) as dictionary:
-                metadata = {
-                    'item_count': len(dictionary),
-                    'copyright': dictionary.copyright or '',
-                    'license': dictionary.license or '',
-                    'description': dictionary.description or '',
-                    'source': dictionary.source or '',
-                    'version': str(dictionary.version) if dictionary.version else '',
-                    'tags': dictionary.tags or {},
-                }
-                return metadata
-        except Exception as e:
-            print(f"Error extracting metadata: {e}")
-            return self._extract_metadata_fallback(dict_path)
-
-    def _extract_metadata_fallback(self, dict_path: str) -> Dict[str, Any]:
-        """
-        Fallback metadata extraction when slob library is unavailable.
-        
-        Args:
-            dict_path: Path to the .slob file
-            
-        Returns:
-            Dictionary containing basic metadata
-        """
-        try:
-            file_size = os.path.getsize(dict_path)
-            return {
-                'item_count': 0,
-                'copyright': '',
-                'license': '',
-                'description': '',
-                'source': '',
-                'version': '',
-                'tags': {},
-                'file_size': file_size,
+        with slob.open(dict_path) as dictionary:
+            from ..utils import slob_tags
+            metadata = {
+                'id': dictionary.id,
+                'blob_count': dictionary.blob_count
             }
-        except Exception:
-            return {}
+            metadata.update(dictionary.tags)
+            if slob_tags.TAG_LABEL not in metadata:
+                metadata[slob_tags.TAG_LABEL] = stem
+
+            print(metadata)
+            return metadata
 
     def delete_dictionary(self, filename: str) -> bool:
         """

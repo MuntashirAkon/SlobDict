@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: slobdict\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-20 14:56-0800\n"
+"POT-Creation-Date: 2025-12-20 16:10-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -56,7 +56,7 @@ msgid "Open"
 msgstr ""
 
 #: slobdict/ui/dictionaries_dialog.py:163
-#: slobdict/ui/dictionaries_dialog.py:234 slobdict/ui/preferences_dialog.py:153
+#: slobdict/ui/dictionaries_dialog.py:232 slobdict/ui/preferences_dialog.py:153
 #: slobdict/ui/preferences_dialog.py:173
 msgid "Cancel"
 msgstr ""
@@ -77,62 +77,57 @@ msgstr ""
 msgid "Failed to import dictionary"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:205
+#: slobdict/ui/dictionaries_dialog.py:206
 #, python-format
 msgid "Items: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:208
+#: slobdict/ui/dictionaries_dialog.py:209
 #, python-format
 msgid "Copyright: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:211
+#: slobdict/ui/dictionaries_dialog.py:212
 #, python-format
 msgid "License: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:214
-#, python-format
-msgid "Description: %s"
-msgstr ""
-
-#: slobdict/ui/dictionaries_dialog.py:217
+#: slobdict/ui/dictionaries_dialog.py:215
 #, python-format
 msgid "Source: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:220
+#: slobdict/ui/dictionaries_dialog.py:218
 msgid "No metadata available"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:225
-#: slobdict/ui/dictionaries_dialog.py:262 slobdict/ui/preferences_dialog.py:215
+#: slobdict/ui/dictionaries_dialog.py:223
+#: slobdict/ui/dictionaries_dialog.py:260 slobdict/ui/preferences_dialog.py:215
 msgid "OK"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:232
+#: slobdict/ui/dictionaries_dialog.py:230
 msgid "Delete Dictionary?"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:233
+#: slobdict/ui/dictionaries_dialog.py:231
 #, python-format
 msgid "Are you sure you want to delete '%s'?"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:235
+#: slobdict/ui/dictionaries_dialog.py:233
 msgid "Delete"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:243
+#: slobdict/ui/dictionaries_dialog.py:241
 msgid "Dictionary deleted"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:245
+#: slobdict/ui/dictionaries_dialog.py:243
 msgid "Failed to delete dictionary"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:260 slobdict/ui/preferences_dialog.py:213
+#: slobdict/ui/dictionaries_dialog.py:258 slobdict/ui/preferences_dialog.py:213
 msgid "Error"
 msgstr ""
 
