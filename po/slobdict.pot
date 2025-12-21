@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: slobdict\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-21 00:35-0800\n"
+"POT-Creation-Date: 2025-12-21 04:40-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -20,7 +20,7 @@ msgstr ""
 
 #. Title (center)
 #: slobdict/ui/dictionaries_dialog.py:19 slobdict/ui/dictionaries_dialog.py:41
-#: slobdict/ui/main_window.py:134
+#: slobdict/ui/main_window.py:154
 msgid "Dictionaries"
 msgstr ""
 
@@ -55,8 +55,8 @@ msgid "Open"
 msgstr ""
 
 #: slobdict/ui/dictionaries_dialog.py:163
-#: slobdict/ui/dictionaries_dialog.py:232 slobdict/ui/preferences_dialog.py:153
-#: slobdict/ui/preferences_dialog.py:173
+#: slobdict/ui/dictionaries_dialog.py:232 slobdict/ui/preferences_dialog.py:168
+#: slobdict/ui/preferences_dialog.py:190 slobdict/ui/preferences_dialog.py:212
 msgid "Cancel"
 msgstr ""
 
@@ -101,7 +101,7 @@ msgid "No metadata available"
 msgstr ""
 
 #: slobdict/ui/dictionaries_dialog.py:223
-#: slobdict/ui/dictionaries_dialog.py:260 slobdict/ui/preferences_dialog.py:215
+#: slobdict/ui/dictionaries_dialog.py:260 slobdict/ui/preferences_dialog.py:254
 msgid "OK"
 msgstr ""
 
@@ -126,159 +126,202 @@ msgstr ""
 msgid "Failed to delete dictionary"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:258 slobdict/ui/preferences_dialog.py:213
+#: slobdict/ui/dictionaries_dialog.py:258 slobdict/ui/preferences_dialog.py:252
 msgid "Error"
 msgstr ""
 
-#: slobdict/ui/main_window.py:118
+#: slobdict/ui/main_window.py:127
 #, python-format
 msgid "WebKit unavailable: %s"
 msgstr ""
 
-#: slobdict/ui/main_window.py:135 slobdict/ui/preferences_dialog.py:19
-#: slobdict/ui/preferences_dialog.py:25
+#: slobdict/ui/main_window.py:147 slobdict/ui/main_window.py:172
+#: slobdict/ui/main_window.py:212 data/ui/window.blp:23
+msgid "Lookup"
+msgstr ""
+
+#: slobdict/ui/main_window.py:148 slobdict/ui/main_window.py:174
+#: slobdict/ui/preferences_dialog.py:110
+msgid "Bookmarks"
+msgstr ""
+
+#: slobdict/ui/main_window.py:149 slobdict/ui/main_window.py:176
+#: slobdict/ui/preferences_dialog.py:90
+msgid "History"
+msgstr ""
+
+#: slobdict/ui/main_window.py:155 slobdict/ui/preferences_dialog.py:21
+#: slobdict/ui/preferences_dialog.py:29
 msgid "Preferences"
 msgstr ""
 
-#: slobdict/ui/main_window.py:136
+#: slobdict/ui/main_window.py:156
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: slobdict/ui/main_window.py:137
+#: slobdict/ui/main_window.py:157
 #, python-format
 msgid "About %s"
 msgstr ""
 
-#: slobdict/ui/main_window.py:139
+#: slobdict/ui/main_window.py:162
 msgid "Quit"
 msgstr ""
 
-#: slobdict/ui/main_window.py:176 data/ui/window.blp:72
-msgid "Lookup"
-msgstr ""
-
-#: slobdict/ui/main_window.py:184
+#: slobdict/ui/main_window.py:221
 msgid "Open Link"
 msgstr ""
 
-#: slobdict/ui/main_window.py:396
+#: slobdict/ui/main_window.py:505
+msgid "No bookmarks"
+msgstr ""
+
+#: slobdict/ui/main_window.py:585
 msgid "No history"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:31
+#. Reuse history_search_entry for bookmarks filtering
+#: slobdict/ui/main_window.py:728
+msgid "Filter bookmarks..."
+msgstr ""
+
+#: slobdict/ui/main_window.py:738 data/ui/window.blp:53
+msgid "Filter history..."
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:35
 msgid "Appearance"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:36
+#: slobdict/ui/preferences_dialog.py:40
 msgid "Theme"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:37
+#: slobdict/ui/preferences_dialog.py:41
 msgid "Choose application theme"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:40
+#: slobdict/ui/preferences_dialog.py:44
 msgid "System"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:41
+#: slobdict/ui/preferences_dialog.py:45
 msgid "Light"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:42
+#: slobdict/ui/preferences_dialog.py:46
 msgid "Dark"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:54
+#: slobdict/ui/preferences_dialog.py:58
 msgid "Force Dark Mode"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:55
+#: slobdict/ui/preferences_dialog.py:59
 msgid "Apply dark mode to web content"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:63
+#: slobdict/ui/preferences_dialog.py:67
 msgid "Content"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:68
+#: slobdict/ui/preferences_dialog.py:72
 msgid "Load Remote Content"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:69
+#: slobdict/ui/preferences_dialog.py:73
 msgid "Load images and resources from the internet"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:77
+#: slobdict/ui/preferences_dialog.py:81
 msgid "Enable JavaScript"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:78
+#: slobdict/ui/preferences_dialog.py:82
 msgid "Allow scripts in web content"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:86
-msgid "History"
-msgstr ""
-
-#: slobdict/ui/preferences_dialog.py:91
+#: slobdict/ui/preferences_dialog.py:95
 msgid "Enable History"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:92
+#: slobdict/ui/preferences_dialog.py:96
 msgid "Save and display search history"
 msgstr ""
 
 #. Clear history button
-#: slobdict/ui/preferences_dialog.py:99
+#: slobdict/ui/preferences_dialog.py:103
 msgid "Clear History"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:106
+#. Clear bookmarks button
+#: slobdict/ui/preferences_dialog.py:114
+msgid "Clear Bookmarks"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:121
 msgid "Data"
 msgstr ""
 
 #. Clear cache button
-#: slobdict/ui/preferences_dialog.py:110
+#: slobdict/ui/preferences_dialog.py:125
 msgid "Clear Web Cache"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:151
+#: slobdict/ui/preferences_dialog.py:166
 msgid "Clear History?"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:152
+#: slobdict/ui/preferences_dialog.py:167
 msgid ""
 "Are you sure you want to clear all search history? This action cannot be "
 "undone."
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:154 slobdict/ui/preferences_dialog.py:174
+#: slobdict/ui/preferences_dialog.py:169 slobdict/ui/preferences_dialog.py:191
+#: slobdict/ui/preferences_dialog.py:213
 msgid "Clear"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:161
+#: slobdict/ui/preferences_dialog.py:177
 msgid "History cleared"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:163
+#: slobdict/ui/preferences_dialog.py:180
 msgid "Failed to clear history"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:171
+#: slobdict/ui/preferences_dialog.py:188
+msgid "Clear Bookmarks?"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:189
+msgid ""
+"Are you sure you want to clear all bookmarks? This action cannot be undone."
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:199
+msgid "Bookmarks cleared"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:202
+msgid "Failed to clear bookmarks"
+msgstr ""
+
+#: slobdict/ui/preferences_dialog.py:210
 msgid "Clear Web Cache?"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:172
+#: slobdict/ui/preferences_dialog.py:211
 msgid ""
 "Are you sure you want to clear the web cache? This will free up disk space."
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:181
+#: slobdict/ui/preferences_dialog.py:220
 msgid "Cache cleared"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:183
+#: slobdict/ui/preferences_dialog.py:222
 msgid "Failed to clear cache"
 msgstr ""
 
@@ -299,37 +342,46 @@ msgstr ""
 
 #: data/ui/shortcuts.blp:24
 msgctxt "shortcut window"
+msgid "Bookmarks"
+msgstr ""
+
+#: data/ui/shortcuts.blp:30
+msgctxt "shortcut window"
 msgid "History"
 msgstr ""
 
-#: data/ui/shortcuts.blp:31
+#: data/ui/shortcuts.blp:37
 msgctxt "shortcut window"
 msgid "General"
 msgstr ""
 
-#: data/ui/shortcuts.blp:34
+#: data/ui/shortcuts.blp:40
 msgctxt "shortcut window"
 msgid "Preferences"
 msgstr ""
 
-#: data/ui/shortcuts.blp:40
+#: data/ui/shortcuts.blp:46
 msgctxt "shortcut window"
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: data/ui/shortcuts.blp:45
+#: data/ui/shortcuts.blp:51
 msgctxt "shortcut window"
 msgid "Quit"
 msgstr ""
 
-#: data/ui/window.blp:37
-msgid "Lookup Dictionary"
+#: data/ui/window.blp:44
+msgid "Lookup..."
 msgstr ""
 
-#: data/ui/window.blp:46
-msgid "View History"
+#: data/ui/window.blp:85
+msgid "Previous"
 msgstr ""
 
-#: data/ui/window.blp:88
-msgid "Filter history..."
+#: data/ui/window.blp:90
+msgid "Next"
+msgstr ""
+
+#: data/ui/window.blp:97
+msgid "Bookmark"
 msgstr ""

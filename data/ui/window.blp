@@ -91,6 +91,13 @@ template $MainWindow : Adw.ApplicationWindow {
           }
         }
 
+        [end]
+        Gtk.Button bookmark_button {
+          icon-name: "non-starred-symbolic";
+          tooltip-text: _("Bookmark");
+          css-classes: ["flat"];
+        }
+
         title-widget: Adw.WindowTitle {
           title: "Slob Dictionary";
           subtitle: "";

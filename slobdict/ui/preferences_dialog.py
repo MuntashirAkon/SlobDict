@@ -6,6 +6,8 @@ gi.require_version("Adw", "1")
 
 from gi.repository import Gtk, Adw
 from ..backend.settings_manager import SettingsManager
+from ..backend.history_db import HistoryDB
+from ..backend.bookmarks_db import BookmarksDB
 
 
 class PreferencesDialog(Adw.PreferencesWindow):
@@ -19,6 +21,8 @@ class PreferencesDialog(Adw.PreferencesWindow):
         self.set_title(_("Preferences"))
         
         self.settings_manager = settings_manager
+        self.history_db = HistoryDB()
+        self.bookmarks_db = BookmarksDB()
         
         # Create preferences page
         page = Adw.PreferencesPage()
@@ -101,6 +105,17 @@ class PreferencesDialog(Adw.PreferencesWindow):
         clear_history_button.connect("clicked", self._on_clear_history_clicked)
         history_group.add(clear_history_button)
         
+        # Bookmarks section
+        bookmarks_group = Adw.PreferencesGroup()
+        bookmarks_group.set_title(_("Bookmarks"))
+        page.add(bookmarks_group)
+        
+        # Clear bookmarks button
+        clear_bookmarks_button = Gtk.Button(label=_("Clear Bookmarks"))
+        clear_bookmarks_button.set_css_classes(["destructive-action"])
+        clear_bookmarks_button.connect("clicked", self._on_clear_bookmarks_clicked)
+        bookmarks_group.add(clear_bookmarks_button)
+        
         # Data section
         data_group = Adw.PreferencesGroup()
         data_group.set_title(_("Data"))
@@ -157,10 +172,34 @@ class PreferencesDialog(Adw.PreferencesWindow):
         
         def on_response(dialog, response):
             if response == "clear":
-                if self.settings_manager.clear_history():
+                try:
+                    self.history_db.clear_history()
                     self._show_notification(_("History cleared"))
-                else:
+                except Exception as e:
+                    print(f"Error clearing history: {e}")
                     self._show_error(_("Failed to clear history"))
+        
+        dialog.connect("response", on_response)
+        dialog.present()
+
+    def _on_clear_bookmarks_clicked(self, button):
+        """Handle clear bookmarks button click."""
+        dialog = Adw.MessageDialog(transient_for=self)
+        dialog.set_heading(_("Clear Bookmarks?"))
+        dialog.set_body(_("Are you sure you want to clear all bookmarks? This action cannot be undone."))
+        dialog.add_response("cancel", _("Cancel"))
+        dialog.add_response("clear", _("Clear"))
+        dialog.set_response_appearance("clear", Adw.ResponseAppearance.DESTRUCTIVE)
+        dialog.set_default_response("cancel")
+        
+        def on_response(dialog, response):
+            if response == "clear":
+                try:
+                    self.bookmarks_db.clear_bookmarks()
+                    self._show_notification(_("Bookmarks cleared"))
+                except Exception as e:
+                    print(f"Error clearing bookmarks: {e}")
+                    self._show_error(_("Failed to clear bookmarks"))
         
         dialog.connect("response", on_response)
         dialog.present()

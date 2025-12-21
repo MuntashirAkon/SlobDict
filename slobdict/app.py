@@ -35,6 +35,7 @@ class SlobDictApplication(Adw.Application):
             ('about', self.on_about),
             ('quit', lambda *_: self.quit()),
             ('lookup', self.on_search),
+            ('bookmarks', self.on_bookmarks),
             ('history', self.on_history),
         ]
 
@@ -47,6 +48,7 @@ class SlobDictApplication(Adw.Application):
         """Register all keyboard shortcuts."""
         self.set_accels_for_action('app.dictionaries', ['<primary>d'])
         self.set_accels_for_action('app.lookup', ['<primary>l'])
+        self.set_accels_for_action('app.bookmarks', ['<primary>b'])
         self.set_accels_for_action('app.history', ['<primary>h'])
         self.set_accels_for_action('app.preferences', ['<primary>comma'])
         self.set_accels_for_action('app.quit', ['<primary>q'])
@@ -89,6 +91,11 @@ class SlobDictApplication(Adw.Application):
         """Handle search action (Ctrl+L)."""
         window = self.get_active_window()
         window.action_lookup(action, param)
+
+    def on_bookmarks(self, action, param):
+        """Handle history action (Ctrl+B)."""
+        window = self.get_active_window()
+        window.action_bookmarks(action, param)
 
     def on_history(self, action, param):
         """Handle history action (Ctrl+H)."""

@@ -12,6 +12,7 @@ from concurrent.futures import ThreadPoolExecutor
 from urllib.parse import quote, urlparse
 from ..backend.slob_client import SlobClient
 from ..backend.http_server import HTTPServer_
+from ..backend.bookmarks_db import BookmarksDB
 from ..backend.history_db import HistoryDB
 from ..constants import app_label, rootdir
 
@@ -28,6 +29,7 @@ class MainWindow(Adw.ApplicationWindow):
     sidebar_menu_button = Gtk.Template.Child()
     content_toolbar_view = Gtk.Template.Child()
     content_header = Gtk.Template.Child()
+    bookmark_button = Gtk.Template.Child()
     back_button = Gtk.Template.Child()
     forward_button = Gtk.Template.Child()
     nav_buttons_box = Gtk.Template.Child()
@@ -69,7 +71,8 @@ class MainWindow(Adw.ApplicationWindow):
         # Initialize slob backend
         self.slob_client = SlobClient(self._on_dictionary_updated)
 
-        # Initialize history manager
+        # Initialize DB
+        self.bookmarks_db = BookmarksDB()
         self.history_db = HistoryDB()
 
         # Initialize HTTP server
@@ -100,6 +103,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Connect button signals
         self.back_button.connect("clicked", self._on_back_clicked)
         self.forward_button.connect("clicked", self._on_forward_clicked)
+        self.bookmark_button.connect("clicked", self._on_bookmark_clicked)
 
         # Connect search signals
         self.search_entry.connect("search-changed", self._on_search_changed)
@@ -141,6 +145,7 @@ class MainWindow(Adw.ApplicationWindow):
         # View mode section
         view_section = Gio.Menu()
         view_section.append(_("Lookup"), "app.lookup")
+        view_section.append(_("Bookmarks"), "app.bookmarks")
         view_section.append(_("History"), "app.history")
         menu.append_section(None, view_section)
 
@@ -165,6 +170,8 @@ class MainWindow(Adw.ApplicationWindow):
         if isinstance(title_widget, Adw.WindowTitle):
             if self.current_view == "lookup":
                 title_widget.set_title(_("Lookup"))
+            elif self.current_view == "bookmarks":
+                title_widget.set_title(_("Bookmarks"))
             else:
                 title_widget.set_title(_("History"))
 
@@ -311,6 +318,8 @@ class MainWindow(Adw.ApplicationWindow):
                 self.current_history_index -= 1
                 entry = self.navigation_history[self.current_history_index]
                 subtitle = entry.get('title', '')
+                self.current_entry = entry
+                self._update_bookmark_button()
             self._update_content_subtitle(subtitle)
             self._update_nav_buttons()
 
@@ -323,8 +332,49 @@ class MainWindow(Adw.ApplicationWindow):
                 self.current_history_index += 1
                 entry = self.navigation_history[self.current_history_index]
                 subtitle = entry.get('title', '')
+                self.current_entry = entry
+                self._update_bookmark_button()
             self._update_content_subtitle(subtitle)
             self._update_nav_buttons()
+    
+    def _on_bookmark_clicked(self, button):
+        """Toggle bookmark for current entry."""
+        entry = self.current_entry
+        if not entry:
+            return
+        
+        key_id = entry.get('id', '')
+        source = entry.get('source', '')
+        key = entry.get('title', '')
+        dictionary = entry.get('dictionary', '')
+        
+        if self.bookmarks_db.is_bookmarked(key_id, source):
+            # Remove bookmark
+            self.bookmarks_db.remove_bookmark(key_id, source)
+            self.bookmark_button.set_icon_name("non-starred-symbolic")
+        else:
+            # Add bookmark
+            self.bookmarks_db.add_bookmark(key_id, key, source, dictionary)
+            self.bookmark_button.set_icon_name("starred-symbolic")
+        self._on_history_search_changed(self.history_search_entry)
+
+    def _update_bookmark_button(self):
+        """Update bookmark button appearance based on current entry."""
+        entry = self.current_entry
+        if not entry:
+            # No entry displayed, disable button
+            self.bookmark_button.set_sensitive(False)
+            self.bookmark_button.set_icon_name("non-starred-symbolic")
+            return
+        
+        self.bookmark_button.set_sensitive(True)
+        key_id = entry.get('id', '')
+        source = entry.get('source', '')
+        
+        if self.bookmarks_db.is_bookmarked(key_id, source):
+            self.bookmark_button.set_icon_name("starred-symbolic")
+        else:
+            self.bookmark_button.set_icon_name("non-starred-symbolic")
 
     def _update_nav_buttons(self):
         """Update back/forward button visibility and sensitivity."""
@@ -358,12 +408,15 @@ class MainWindow(Adw.ApplicationWindow):
             self._populate_results([])
 
     def _on_history_search_changed(self, entry):
-        """Handle history search text changes."""
-        if self.current_view != "history":
+        """Handle history/bookmarks search text changes."""
+        if self.current_view not in ("history", "bookmarks"):
             return
         
         text = entry.get_text()
-        self._populate_history(text)
+        if self.current_view == "history":
+            self._populate_history(text)
+        else:
+            self._populate_bookmarks(text)
 
     def _search_task(self, query: str, request_id: int):
         """Search task with cancellation support."""
@@ -423,6 +476,86 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Reconnect signal after populating
         self.results_list.connect("row-selected", self._on_result_selected)
+
+    def _populate_bookmarks(self, filter_query: str = ""):
+        """Populate bookmarks list with optional filtering."""
+        bookmark_items = self.bookmarks_db.get_bookmarks(filter_query)
+        
+        self.row_to_result.clear()
+
+        # Clear existing rows
+        while True:
+            row = self.results_list.get_first_child()
+            if row is None:
+                break
+            self.results_list.remove(row)
+
+        if not bookmark_items:
+            row = Gtk.ListBoxRow()
+            row.set_selectable(False)
+            row.set_activatable(False)
+            
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            box.set_halign(Gtk.Align.CENTER)
+            box.set_valign(Gtk.Align.CENTER)
+            box.set_vexpand(True)
+            box.set_hexpand(True)
+            box.set_spacing(10)
+
+            label = Gtk.Label(label=_("No bookmarks"))
+            label.set_css_classes(["dim-label"])
+            label.set_wrap(True)
+            box.append(label)
+
+            row.set_child(box)
+            self.results_list.append(row)
+            return
+
+        # Add bookmark items
+        for bookmark_item in bookmark_items:
+            row = Gtk.ListBoxRow()
+            box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL)
+            box.set_margin_top(8)
+            box.set_margin_bottom(8)
+            box.set_margin_start(12)
+            box.set_margin_end(12)
+            box.set_spacing(4)
+
+            # Title
+            title_label = Gtk.Label(label=bookmark_item.get("key", ""))
+            title_label.set_ellipsize(3)
+            title_label.set_halign(Gtk.Align.START)
+            box.append(title_label)
+
+            # Source and date
+            info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
+            info_box.set_spacing(8)
+            
+            source_label = Gtk.Label(label=bookmark_item.get("dictionary", ""))
+            source_label.set_css_classes(["dim-label"])
+            source_label.set_ellipsize(3)
+            source_label.set_halign(Gtk.Align.START)
+            info_box.append(source_label)
+
+            date_label = Gtk.Label(
+                label=self.bookmarks_db.format_timestamp(bookmark_item.get("created_at", ""))
+            )
+            date_label.set_css_classes(["dim-label"])
+            date_label.set_ellipsize(3)
+            date_label.set_halign(Gtk.Align.START)
+            date_label.set_hexpand(True)
+            info_box.append(date_label)
+            
+            box.append(info_box)
+
+            row.set_child(box)
+            self.row_to_result[row] = {
+                "id": bookmark_item["key_id"],
+                "title": bookmark_item["key"],
+                "source": bookmark_item["source"],
+                "dictionary": bookmark_item["dictionary"]
+            }
+            self.results_list.append(row)
 
     def _populate_history(self, filter_query: str = ""):
         """Populate history list with optional filtering."""
@@ -530,7 +663,8 @@ class MainWindow(Adw.ApplicationWindow):
         dictionary = entry['dictionary']
         GLib.idle_add(self._render_entry, entry)
         # Add to history
-        self.history_db.add_entry(key_id, key, source, dictionary)
+        if self.settings_manager.get('enable_history', True):
+            self.history_db.add_entry(key_id, key, source, dictionary)
 
     def _render_entry(self, entry: Dict, update_history: bool = True):
         """Render entry in webview."""
@@ -558,6 +692,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._update_content_subtitle(entry.get('title', ''))
         
         self.current_entry = entry
+        self._update_bookmark_button()
         self.webview.load_uri(url)
 
     def _update_content_subtitle(self, subtitle: str):
@@ -583,11 +718,24 @@ class MainWindow(Adw.ApplicationWindow):
         self._populate_results([])
         self._on_dictionary_updated()
 
+    def action_bookmarks(self, action, param):
+        """Switch to bookmarks view - register as app.bookmarks action."""
+        self.current_view = "bookmarks"
+        self._update_sidebar_title()
+        self.search_entry.set_visible(False)
+        self.history_search_entry.set_visible(False)
+        # Reuse history_search_entry for bookmarks filtering
+        self.history_search_entry.set_placeholder_text(_("Filter bookmarks..."))
+        self.history_search_entry.set_visible(True)
+        self.history_search_entry.grab_focus()
+        self._populate_bookmarks()
+
     def action_history(self, action, param):
         """Switch to history view - register as app.history action."""
         self.current_view = "history"
         self._update_sidebar_title()
         self.search_entry.set_visible(False)
+        self.history_search_entry.set_placeholder_text(_("Filter history..."))
         self.history_search_entry.set_visible(True)
         self.history_search_entry.grab_focus()
         self._populate_history()
