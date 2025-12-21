@@ -107,7 +107,7 @@ class MainWindow(Adw.ApplicationWindow):
         # Menu items
         menu.append(_("Dictionaries"), "app.dictionaries")
         menu.append(_("Preferences"), "app.preferences")
-        menu.append(_("Keyboard Shortcuts"), "app.shortcuts")
+        menu.append(_("Keyboard Shortcuts"), "win.show-help-overlay")
         menu.append(_("About %s") % app_label, "app.about")
         menu.append_section(None, Gio.Menu.new())
         menu.append(_("Quit"), "app.quit")
@@ -147,7 +147,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.lookup_btn.set_has_frame(False)
         self.lookup_btn.set_size_request(40, 40)
         self.lookup_btn.add_css_class("flat")
-        self.lookup_btn.connect("clicked", self._on_lookup_clicked)
+        self.lookup_btn.connect("clicked", self.on_lookup_clicked)
         sidebar_box.append(self.lookup_btn)
 
         # History icon
@@ -157,7 +157,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.history_btn.set_has_frame(False)
         self.history_btn.set_size_request(40, 40)
         self.history_btn.add_css_class("flat")
-        self.history_btn.connect("clicked", self._on_history_clicked)
+        self.history_btn.connect("clicked", self.on_history_clicked)
         sidebar_box.append(self.history_btn)
 
         # Set lookup as initially active
@@ -423,7 +423,7 @@ class MainWindow(Adw.ApplicationWindow):
         if hasattr(self, 'history_search_entry'):
             self._on_history_search_changed(self.history_search_entry)
 
-    def _on_lookup_clicked(self, button):
+    def on_lookup_clicked(self, button):
         """Switch to lookup view."""
         self._set_active_button(button)
         self.current_view = "lookup"
@@ -433,7 +433,7 @@ class MainWindow(Adw.ApplicationWindow):
         self._populate_results([])
         self._on_dictionary_updated()
 
-    def _on_history_clicked(self, button):
+    def on_history_clicked(self, button):
         """Switch to history view."""
         self._set_active_button(button)
         self.current_view = "history"

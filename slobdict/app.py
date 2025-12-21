@@ -21,6 +21,7 @@ class SlobDictApplication(Adw.Application):
 
         # Application actions
         self._setup_actions()
+        self._setup_shortcuts()
         self.connect('activate', self.on_activate)
 
         self._apply_appearance()
@@ -31,9 +32,10 @@ class SlobDictApplication(Adw.Application):
         actions = [
             ('dictionaries', self.on_dictionaries),
             ('preferences', self.on_preferences),
-            ('shortcuts', self.on_shortcuts),
             ('about', self.on_about),
             ('quit', lambda *_: self.quit()),
+            ('lookup', self.on_search),
+            ('history', self.on_history),
         ]
 
         for name, callback in actions:
@@ -41,7 +43,12 @@ class SlobDictApplication(Adw.Application):
             action.connect("activate", callback)
             self.add_action(action)
 
-        # Keyboard shortcuts
+    def _setup_shortcuts(self):
+        """Register all keyboard shortcuts."""
+        self.set_accels_for_action('app.dictionaries', ['<primary>d'])
+        self.set_accels_for_action('app.lookup', ['<primary>l'])
+        self.set_accels_for_action('app.history', ['<primary>h'])
+        self.set_accels_for_action('app.preferences', ['<primary>comma'])
         self.set_accels_for_action('app.quit', ['<primary>q'])
 
     def on_activate(self, app):
@@ -78,20 +85,24 @@ class SlobDictApplication(Adw.Application):
         dialog = PreferencesDialog(self.get_active_window(), self.settings_manager)
         dialog.set_visible(True)
 
-    def on_shortcuts(self, action, param):
-        """Open keyboard shortcuts dialog."""
-        dialog = Adw.MessageDialog(transient_for=self.get_active_window())
-        dialog.set_heading("Keyboard Shortcuts")
-        dialog.set_body("Shortcuts would be listed here.")
-        dialog.add_response("ok", "OK")
-        dialog.set_default_response("ok")
-        dialog.present()
+    def on_search(self, action, param):
+        """Handle search action (Ctrl+L)."""
+        print("Lookup should be displayed")
+        window = self.get_active_window()
+        window.on_lookup_clicked(window.lookup_btn)
+
+    def on_history(self, action, param):
+        """Handle history action (Ctrl+H)."""
+        print("History should be displayed")
+        window = self.get_active_window()
+        window.on_history_clicked(window.history_btn)
 
     def on_about(self, action, param):
         """Open about dialog."""
-        from .constants import version
+        from .constants import version, app_id
         about = Adw.AboutWindow(transient_for=self.get_active_window())
         about.set_application_name("Slob Dictionary")
+        about.set_application_icon(app_id)
         about.set_version(version)
         about.set_developer_name("Muntashir Al-Islam")
         about.set_developers(["Muntashir Al-Islam"])

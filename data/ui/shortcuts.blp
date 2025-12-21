@@ -1,16 +1,52 @@
 using Gtk 4.0;
 
 ShortcutsWindow help_overlay {
+  modal: true;
+
   ShortcutsSection {
-    section-name: "shortcuts";
-    max-height: 12;
+    section-name: 'shortcuts';
+    max-height: 10;
 
     ShortcutsGroup {
-      title: _("General");
+      title: C_("shortcut window", "Navigation");
 
       ShortcutsShortcut {
-        title: _("Keyboard shortcuts");
+        title: C_("shortcut window", "Dictionaries");
+        accelerator: "<primary>d";
+        action-name: "app.dictionaries";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Lookup");
+        accelerator: "<primary>l";
+        action-name: "app.lookup";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "History");
+        accelerator: "<primary>h";
+        action-name: "app.history";
+      }
+    }
+
+    ShortcutsGroup {
+      title: C_("shortcut window", "General");
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Preferences");
+        accelerator: "<primary>comma";
+        action-name: "app.preferences";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Keyboard Shortcuts");
         action-name: "win.show-help-overlay";
+      }
+
+      ShortcutsShortcut {
+        title: C_("shortcut window", "Quit");
+        accelerator: "<primary>q";
+        action-name: "app.quit";
       }
     }
   }
