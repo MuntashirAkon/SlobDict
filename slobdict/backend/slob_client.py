@@ -129,6 +129,7 @@ class SlobClient:
             except Exception as e:
                 print(f"Error searching {dict_name}: {e}")
 
+        results.sort(key=lambda d: d['title'])
         return results[:limit]
 
     def _find_in_slob(self, slob, query: str, limit: int, request_id: int = None) -> List[str]:
