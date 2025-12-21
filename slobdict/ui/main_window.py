@@ -62,7 +62,6 @@ class MainWindow(Adw.ApplicationWindow):
         # State
         self.current_view = "lookup"  # "lookup" or "history"
         self.search_query = ""
-        self.current_result = None
         self.row_to_result = {}
 
         # Main container
@@ -482,19 +481,6 @@ class MainWindow(Adw.ApplicationWindow):
         # Only update UI if this request is still current
         if request_id == self.current_search_request_id:
             GLib.idle_add(self._populate_results, results)
-
-    def _lookup_task(self, query: str, request_id: int):
-        """Lookup task with cancellation support."""
-        self.slob_client.set_current_request(request_id)
-        results = self.slob_client.search(query, limit=1, request_id=request_id)
-        
-        if results and request_id == self.current_lookup_request_id:
-            result = results[0]
-            entry = self.slob_client.get_entry(
-                result["title"], result["source"], request_id=request_id
-            )
-            if entry:
-                GLib.idle_add(self._render_entry, entry)
     
     def _populate_results(self, results: List[Dict]):
         """Populate results list."""
@@ -611,6 +597,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             row.set_child(box)
             self.row_to_result[row] = {
+                "id": history_item["key_id"],
                 "title": history_item["key"],
                 "source": history_item["source"],
                 "dictionary": history_item["dictionary"]
@@ -625,43 +612,35 @@ class MainWindow(Adw.ApplicationWindow):
         # Get result directly from row object
         result = self.row_to_result.get(row)
         
-        if result:            
-            # Increment request counter
-            self.request_counter += 1
-            self.current_lookup_request_id = self.request_counter
-
+        if result:
             # Cancel previous lookup
             if self.pending_lookup_task:
                 self.pending_lookup_task.cancel()
 
             self.pending_lookup_task = self.executor.submit(
                 self._load_entry_task,
-                result["title"],
-                result["source"],
-                result['dictionary'],
-                self.current_lookup_request_id
+                result
             )
 
-    def _load_entry_task(self, key: str, source: str, dictionary: str, request_id: int):
-        """Load entry task with cancellation support."""        
-        self.slob_client.set_current_request(request_id)
-        entry = self.slob_client.get_entry(key, source, request_id=request_id)
-        
-        if entry and request_id == self.current_lookup_request_id:
-            self.current_result = entry
-            GLib.idle_add(self._render_entry, entry)
-            # Add to history
-            self.history_db.add_entry(key, source, dictionary)
+    def _load_entry_task(self, entry: dict):
+        """Load entry task with cancellation support."""            
+        key_id = entry['id']
+        key = entry['title']
+        source = entry['source']
+        dictionary = entry['dictionary']
+        GLib.idle_add(self._render_entry, entry)
+        # Add to history
+        self.history_db.add_entry(key_id, key, source, dictionary)
 
     def _render_entry(self, entry: Dict):
         """Render entry in webview."""
         if not hasattr(self, 'webview'):
             return
 
-        key = quote(entry.get('key', ''), safe='')
+        key_id = quote(entry.get('id', ''), safe='')
         source = quote(entry.get('source', ''), safe='')
         
-        url = f"http://127.0.0.1:{self.http_port}/slob/{source}/{key}"
+        url = f"http://127.0.0.1:{self.http_port}/slob/{source}/{key_id}"
         print(f"Loading: {url}")
         self.webview.load_uri(url)
 

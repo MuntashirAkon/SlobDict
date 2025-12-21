@@ -138,7 +138,7 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
         items = []
         for result in results:
             item = {
-                "url": f"/slob/{result['source']}/{quote(result['title'], safe='')}",
+                "url": f"/slob/{result['source']}/{quote(result['id'], safe='')}",
                 "label": result["title"],
                 "dictLabel": result["source"],
             }

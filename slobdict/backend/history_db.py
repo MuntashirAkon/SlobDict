@@ -22,11 +22,12 @@ class HistoryDB:
             conn.execute("""
                 CREATE TABLE IF NOT EXISTS history (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    key_id TEXT NOT NULL,
                     key TEXT NOT NULL,
                     source TEXT NOT NULL,
                     dictionary TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE(key, source)
+                    UNIQUE(key_id, source)
                 )
             """)
             # Index for faster lookups
@@ -34,21 +35,21 @@ class HistoryDB:
             conn.commit()
         print(f"✓ History database initialized at {self.db_path}")
 
-    def add_entry(self, key: str, source: str, dictionary: str):
+    def add_entry(self, key_id: str, key: str, source: str, dictionary: str):
         """Add entry to history or update timestamp if duplicate."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 # Try to update existing entry
                 cursor = conn.execute(
-                    "UPDATE history SET timestamp = CURRENT_TIMESTAMP WHERE key = ? AND source = ?",
-                    (key, source)
+                    "UPDATE history SET timestamp = CURRENT_TIMESTAMP WHERE key_id = ? AND source = ?",
+                    (key_id, source)
                 )
                 
                 # If no row was updated, insert new one
                 if cursor.rowcount == 0:
                     conn.execute(
-                        "INSERT INTO history (key, source, dictionary) VALUES (?, ?, ?)",
-                        (key, source, dictionary)
+                        "INSERT INTO history (key_id, key, source, dictionary) VALUES (?, ?, ?, ?)",
+                        (key_id, key, source, dictionary)
                     )
                 
                 conn.commit()
@@ -89,14 +90,14 @@ class HistoryDB:
                 if filter_query:
                     query_lower = f"%{filter_query.lower()}%"
                     cursor = conn.execute("""
-                        SELECT key, source, dictionary, timestamp FROM history
+                        SELECT key_id, key, source, dictionary, timestamp FROM history
                         WHERE LOWER(key) LIKE ? OR LOWER(dictionary) LIKE ?
                         ORDER BY timestamp DESC
                         LIMIT ?
                     """, (query_lower, query_lower, limit))
                 else:
                     cursor = conn.execute("""
-                        SELECT key, source, dictionary, timestamp FROM history
+                        SELECT key_id, key, source, dictionary, timestamp FROM history
                         ORDER BY timestamp DESC
                         LIMIT ?
                     """, (limit,))

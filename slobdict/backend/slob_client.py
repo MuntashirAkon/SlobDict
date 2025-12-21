@@ -122,6 +122,7 @@ class SlobClient:
                 matches = self._find_in_slob(dictionary['slob'], query, limit, request_id)
                 for match in matches:
                     results.append({
+                        'id': str(match[0]),
                         "title": match[1],
                         "source": dict_id,
                         "dictionary": dictionary['label']
@@ -144,62 +145,42 @@ class SlobClient:
                     return []
 
                 _, blob = item
-                results.append((blob.id, blob.key, blob.content_type))
+                results.append((blob.id, blob.key))
                 if i == limit:
                     break
         except Exception as e:
             print(f"Error in _find_in_slob: {e}")
         return results
 
-    def get_entry(self, key: str, source: str, request_id: int = None) -> Optional[Dict[str, str]]:
+    def get_entry(self, key_id: str, source: str) -> Optional[Dict[str, str]]:
         """
         Get full entry content from a dictionary.
         
         Args:
-            key: Entry key/title
+            key: Entry key
             source: Dictionary source file name
             request_id: Request ID for cancellation tracking
             
         Returns:
             Dict with 'content', 'key', 'source' or None if not found
         """
-        # Check if this request has been cancelled
-        if request_id and request_id != self.current_request_id:
-            return None
-        
         if source not in self.dictionaries:
             return None
 
         try:
             dictionary = self.dictionaries[source]
-            content = self._get_from_slob(dictionary['slob'], key, request_id)
+            content_type, content = dictionary['slob'].get(int(key_id))
             if content:
                 return {
-                    "key": key,
-                    "content": content[2],
-                    "content_type": content[3],
+                    "id": key_id,
+                    "content": content,
+                    "content_type": content_type,
                     "source": source,
                     "dictionary": dictionary['label'],
                 }
         except Exception as e:
-            print(f"Error getting entry {key} from {source}: {e}")
+            print(f"Error getting entry {key_id} from {source}: {e}")
 
-        return None
-
-    def _get_from_slob(self, slob, key: str, request_id: int = None) -> Optional[tuple]:
-        """Get entry content from slob with cancellation support."""
-        try:
-            from .slob import find
-            for i, item in enumerate(find(key, slob, match_prefix=True)):
-                # Check cancellation
-                if request_id and request_id != self.current_request_id:
-                    return None
-
-                _, blob = item
-                return (blob.id, blob.key, blob.content, blob.content_type)
-        except Exception as e:
-            print(f"Error in _get_from_slob: {e}")
-        
         return None
 
     def cancel_request(self, request_id: int):
