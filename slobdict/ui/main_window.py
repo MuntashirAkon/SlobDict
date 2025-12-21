@@ -404,12 +404,13 @@ class MainWindow(Adw.ApplicationWindow):
             box.set_spacing(4)
 
             title_label = Gtk.Label(label=result.get("title", ""))
-            title_label.set_wrap(True)
+            title_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
             title_label.set_halign(Gtk.Align.START)
             box.append(title_label)
 
             source_label = Gtk.Label(label=result.get("dictionary", ""))
             source_label.set_css_classes(["dim-label"])
+            source_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
             source_label.set_halign(Gtk.Align.START)
             box.append(source_label)
 
@@ -422,7 +423,6 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Reconnect signal after populating
         self.results_list.connect("row-selected", self._on_result_selected)
-
 
     def _populate_history(self, filter_query: str = ""):
         """Populate history list with optional filtering."""
@@ -470,7 +470,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             # Title
             title_label = Gtk.Label(label=history_item.get("key", ""))
-            title_label.set_wrap(True)
+            title_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
             title_label.set_halign(Gtk.Align.START)
             box.append(title_label)
 
@@ -480,6 +480,7 @@ class MainWindow(Adw.ApplicationWindow):
             
             source_label = Gtk.Label(label=history_item.get("dictionary", ""))
             source_label.set_css_classes(["dim-label"])
+            source_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
             source_label.set_halign(Gtk.Align.START)
             info_box.append(source_label)
 
@@ -487,7 +488,8 @@ class MainWindow(Adw.ApplicationWindow):
                 label=self.history_db.format_timestamp(history_item.get("timestamp", ""))
             )
             date_label.set_css_classes(["dim-label"])
-            date_label.set_halign(Gtk.Align.END)
+            date_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
+            date_label.set_halign(Gtk.Align.START)
             date_label.set_hexpand(True)
             info_box.append(date_label)
             
