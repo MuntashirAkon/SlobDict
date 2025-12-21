@@ -1,4 +1,6 @@
+.flatpak/
 .flatpak-builder/
+.vscode/
 __pycache__
 builddir/
 build/

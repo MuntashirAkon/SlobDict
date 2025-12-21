@@ -525,7 +525,7 @@ class MainWindow(Adw.ApplicationWindow):
             title_label.set_halign(Gtk.Align.START)
             box.append(title_label)
 
-            source_label = Gtk.Label(label=result.get("source", ""))
+            source_label = Gtk.Label(label=result.get("dictionary", ""))
             source_label.set_css_classes(["dim-label"])
             source_label.set_halign(Gtk.Align.START)
             box.append(source_label)
@@ -594,7 +594,7 @@ class MainWindow(Adw.ApplicationWindow):
             info_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL)
             info_box.set_spacing(8)
             
-            source_label = Gtk.Label(label=history_item.get("source", ""))
+            source_label = Gtk.Label(label=history_item.get("dictionary", ""))
             source_label.set_css_classes(["dim-label"])
             source_label.set_halign(Gtk.Align.START)
             info_box.append(source_label)
@@ -612,7 +612,8 @@ class MainWindow(Adw.ApplicationWindow):
             row.set_child(box)
             self.row_to_result[row] = {
                 "title": history_item["key"],
-                "source": history_item["source"]
+                "source": history_item["source"],
+                "dictionary": history_item["dictionary"]
             }
             self.results_list.append(row)
 
@@ -637,10 +638,11 @@ class MainWindow(Adw.ApplicationWindow):
                 self._load_entry_task,
                 result["title"],
                 result["source"],
+                result['dictionary'],
                 self.current_lookup_request_id
             )
 
-    def _load_entry_task(self, key: str, source: str, request_id: int):
+    def _load_entry_task(self, key: str, source: str, dictionary: str, request_id: int):
         """Load entry task with cancellation support."""        
         self.slob_client.set_current_request(request_id)
         entry = self.slob_client.get_entry(key, source, request_id=request_id)
@@ -648,8 +650,8 @@ class MainWindow(Adw.ApplicationWindow):
         if entry and request_id == self.current_lookup_request_id:
             self.current_result = entry
             GLib.idle_add(self._render_entry, entry)
-            # Add to history manager
-            self.history_db.add_entry(key, source)
+            # Add to history
+            self.history_db.add_entry(key, source, dictionary)
 
     def _render_entry(self, entry: Dict):
         """Render entry in webview."""

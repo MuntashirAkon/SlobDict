@@ -24,6 +24,7 @@ class HistoryDB:
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     key TEXT NOT NULL,
                     source TEXT NOT NULL,
+                    dictionary TEXT NOT NULL,
                     timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
                     UNIQUE(key, source)
                 )
@@ -33,7 +34,7 @@ class HistoryDB:
             conn.commit()
         print(f"✓ History database initialized at {self.db_path}")
 
-    def add_entry(self, key: str, source: str):
+    def add_entry(self, key: str, source: str, dictionary: str):
         """Add entry to history or update timestamp if duplicate."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -46,8 +47,8 @@ class HistoryDB:
                 # If no row was updated, insert new one
                 if cursor.rowcount == 0:
                     conn.execute(
-                        "INSERT INTO history (key, source) VALUES (?, ?)",
-                        (key, source)
+                        "INSERT INTO history (key, source, dictionary) VALUES (?, ?, ?)",
+                        (key, source, dictionary)
                     )
                 
                 conn.commit()
@@ -88,14 +89,14 @@ class HistoryDB:
                 if filter_query:
                     query_lower = f"%{filter_query.lower()}%"
                     cursor = conn.execute("""
-                        SELECT key, source, timestamp FROM history
-                        WHERE LOWER(key) LIKE ? OR LOWER(source) LIKE ?
+                        SELECT key, source, dictionary, timestamp FROM history
+                        WHERE LOWER(key) LIKE ? OR LOWER(dictionary) LIKE ?
                         ORDER BY timestamp DESC
                         LIMIT ?
                     """, (query_lower, query_lower, limit))
                 else:
                     cursor = conn.execute("""
-                        SELECT key, source, timestamp FROM history
+                        SELECT key, source, dictionary, timestamp FROM history
                         ORDER BY timestamp DESC
                         LIMIT ?
                     """, (limit,))

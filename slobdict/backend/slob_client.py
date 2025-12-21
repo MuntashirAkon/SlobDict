@@ -29,17 +29,19 @@ class SlobClient:
             if not dict_info.get('enabled', True):
                 continue
             
-            filename = dict_info['filename']
+            display_name = dict_info['label']
             dict_path = Path(dict_info['path'])
             
             if dict_path.exists():
-                display_name = filename.replace('.slob', '').replace('_', ' ').title()
                 try:
-                    self.dictionaries[display_name] = SlobWrapper(dict_path)
+                    self.dictionaries[dict_info['id']] = {
+                        'label': display_name,
+                        'slob': SlobWrapper(dict_path),
+                    }
                     print(f"✓ Loaded: {display_name}")
                 except Exception as e:
                     import traceback
-                    print(f"✗ Failed to load {filename}: {e}")
+                    print(f"✗ Failed to load {display_name}: {e}")
                     traceback.print_exc()
             else:
                 print(f"⚠ Not found: {dict_path}")
@@ -111,18 +113,19 @@ class SlobClient:
         """
         results = []
         
-        for dict_name, dictionary in self.dictionaries.items():
+        for dict_id, dictionary in self.dictionaries.items():
             # Check if this request has been cancelled
             if request_id and request_id != self.current_request_id:
                 print(f"Search cancelled (request {request_id})")
                 return []
             
             try:
-                matches = self._find_in_slob(dictionary, query, limit, request_id)
+                matches = self._find_in_slob(dictionary['slob'], query, limit, request_id)
                 for match in matches:
                     results.append({
                         "title": match,
-                        "source": dict_name,
+                        "source": dict_id,
+                        "dictionary": dictionary['label']
                     })
             except Exception as e:
                 print(f"Error searching {dict_name}: {e}")
@@ -169,12 +172,14 @@ class SlobClient:
             return None
 
         try:
-            content = self._get_from_slob(self.dictionaries[source], key, request_id)
+            dictionary = self.dictionaries[source]
+            content = self._get_from_slob(dictionary['slob'], key, request_id)
             if content:
                 return {
                     "key": key,
                     "content": content,
                     "source": source,
+                    "dictionary": dictionary['label'],
                 }
         except Exception as e:
             print(f"Error getting entry {key} from {source}: {e}")
@@ -208,23 +213,10 @@ class SlobClient:
         """Mark a request as current."""
         self.current_request_id = request_id
 
-    def get_dictionary_info(self) -> List[Dict[str, str]]:
-        """Get info about loaded dictionaries."""
-        info = []
-        for dict_name, dictionary in self.dictionaries.items():
-            try:
-                info.append({
-                    "name": dict_name,
-                    "tag": dictionary.tag or "No description",
-                })
-            except Exception as e:
-                print(f"Error getting info for {dict_name}: {e}")
-        return info
-
     def close(self):
         """Close all open dictionaries."""
         for dictionary in self.dictionaries.values():
             try:
-                dictionary.close()
+                dictionary['slob'].close()
             except Exception:
                 pass

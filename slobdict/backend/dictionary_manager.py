@@ -5,7 +5,6 @@ import shutil
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import json
-import slob
 
 class DictionaryManager:
     """Manages dictionary files and metadata."""
@@ -81,7 +80,8 @@ class DictionaryManager:
         Returns:
             Dictionary containing metadata
         """
-        with slob.open(dict_path) as dictionary:
+        from .slob import open as slob_open
+        with slob_open(dict_path) as dictionary:
             from ..utils import slob_tags
             metadata = {
                 'id': dictionary.id,
