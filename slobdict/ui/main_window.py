@@ -138,18 +138,24 @@ class MainWindow(Adw.ApplicationWindow):
         """Create main menu model."""
         menu = Gio.Menu()
 
-        # View mode items
-        menu.append(_("Lookup"), "app.lookup")
-        menu.append(_("History"), "app.history")
-        menu.append_section(None, Gio.Menu.new())
+        # View mode section
+        view_section = Gio.Menu()
+        view_section.append(_("Lookup"), "app.lookup")
+        view_section.append(_("History"), "app.history")
+        menu.append_section(None, view_section)
 
-        # Menu items
-        menu.append(_("Dictionaries"), "app.dictionaries")
-        menu.append(_("Preferences"), "app.preferences")
-        menu.append(_("Keyboard Shortcuts"), "app.shortcuts")
-        menu.append(_("About %s") % app_label, "app.about")
-        menu.append_section(None, Gio.Menu.new())
-        menu.append(_("Quit"), "app.quit")
+        # Settings section
+        settings_section = Gio.Menu()
+        settings_section.append(_("Dictionaries"), "app.dictionaries")
+        settings_section.append(_("Preferences"), "app.preferences")
+        settings_section.append(_("Keyboard Shortcuts"), "app.shortcuts")
+        settings_section.append(_("About %s") % app_label, "app.about")
+        menu.append_section(None, settings_section)
+
+        # Actions section
+        actions_section = Gio.Menu()
+        actions_section.append(_("Quit"), "app.quit")
+        menu.append_section(None, actions_section)
 
         return menu
 
