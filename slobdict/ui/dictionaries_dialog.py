@@ -4,7 +4,8 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
-from gi.repository import Gtk, Adw, Gio
+from gi.repository import Gtk, Adw, Gio, GLib
+import threading
 
 
 class DictionariesDialog(Adw.Window):
@@ -27,7 +28,7 @@ class DictionariesDialog(Adw.Window):
 
         # Header bar
         header_bar = Adw.HeaderBar()
-        header_bar.set_css_classes(["flat"])
+        header_bar.set_css_classes(["flat", "base-background"])
         main_box.append(header_bar)
         
         # Add button (left)
@@ -38,8 +39,7 @@ class DictionariesDialog(Adw.Window):
         header_bar.pack_start(add_button)
         
         # Title (center)
-        title_label = Gtk.Label(label=_("Dictionaries"))
-        title_label.set_css_classes(["title-2"])
+        title_label = Adw.WindowTitle(title=_("Dictionaries"), subtitle=None)
         header_bar.set_title_widget(title_label)
         
         # Scrollable list
@@ -124,6 +124,22 @@ class DictionariesDialog(Adw.Window):
         # Right side: controls
         controls_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         
+        # Info button
+        info_button = Gtk.Button()
+        info_button.set_icon_name("dialog-information-symbolic")
+        info_button.set_has_frame(False)
+        info_button.add_css_class("lightbulb-button")
+        info_button.connect("clicked", self._on_info_clicked, dict_info)
+        controls_box.append(info_button)
+
+        # Delete button
+        delete_button = Gtk.Button()
+        delete_button.set_icon_name("edit-delete-symbolic")
+        delete_button.set_has_frame(False)
+        delete_button.add_css_class("delete-button")
+        delete_button.connect("clicked", self._on_delete_clicked, dict_info['filename'])
+        controls_box.append(delete_button)
+        
         # Enable/disable switch
         enabled = dict_info.get('enabled', True)
         switch = Gtk.Switch()
@@ -131,22 +147,7 @@ class DictionariesDialog(Adw.Window):
         switch.set_halign(Gtk.Align.CENTER)
         switch.set_valign(Gtk.Align.CENTER)
         switch.connect("notify::active", self._on_switch_toggled, dict_info['filename'])
-        controls_box.append(switch)
-        
-        # Info button
-        info_button = Gtk.Button()
-        info_button.set_icon_name("dialog-information-symbolic")
-        info_button.set_has_frame(False)
-        info_button.connect("clicked", self._on_info_clicked, dict_info)
-        controls_box.append(info_button)
-        
-        # Delete button
-        delete_button = Gtk.Button()
-        delete_button.set_icon_name("edit-delete-symbolic")
-        delete_button.set_has_frame(False)
-        delete_button.set_css_classes(["destructive-action"])
-        delete_button.connect("clicked", self._on_delete_clicked, dict_info['filename'])
-        controls_box.append(delete_button)
+        controls_box.append(switch)        
         
         row.append(controls_box)
         
@@ -290,29 +291,86 @@ class DictionariesDialog(Adw.Window):
         dialog.present()
 
     def _import_dictionary_with_format(self, source_path: str, source_format: str = None):
-        """Import dictionary with specified format."""
-        try:
-            result = self.dict_manager.import_dictionary(
-                source_path=source_path,
-                source_format=source_format
-            )
-            
-            if result:
-                self._refresh_list()
-                self._show_notification(_("Dictionary imported successfully"))
-            else:
-                self._show_error(_("Failed to import dictionary"))
+        """Import dictionary with specified format in background thread."""
+        # Add spinner/progress indicator
+        spinner = Gtk.Spinner()
+        spinner.start()
         
-        except FileNotFoundError:
-            self._show_error(_("Dictionary file not found"))
-        except PermissionError:
-            self._show_error(_("Permission denied accessing dictionary"))
-        except ValueError as e:
-            self._show_error(_("Invalid dictionary: %s") % str(e))
-        except RuntimeError as e:
-            self._show_error(_("Conversion failed: %s") % str(e))
-        except Exception as e:
-            self._show_error(_("Error importing dictionary: %s") % str(e))
+        # Create header bar with title
+        header_bar = Adw.HeaderBar()
+        title_label = Adw.WindowTitle(title=_("Importing Dictionary"), subtitle=None)
+        header_bar.set_title_widget(title_label)
+
+        # Create custom dialog with spinner
+        dialog_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        dialog_box.set_margin_top(12)
+        dialog_box.set_margin_bottom(12)
+        dialog_box.set_margin_start(12)
+        dialog_box.set_margin_end(12)
+
+        label = Gtk.Label(label=_("Converting dictionary to SLOB format...\nThis may take a while."))
+        label.set_justify(Gtk.Justification.CENTER)
+        dialog_box.append(label)
+
+        spinner = Gtk.Spinner()
+        spinner.start()
+        dialog_box.append(spinner)
+
+        # Use ToolbarView to handle spacing
+        toolbar_view = Adw.ToolbarView()
+        toolbar_view.add_top_bar(header_bar)
+        toolbar_view.set_content(dialog_box)
+
+        progress_window = Adw.Window()
+        progress_window.set_transient_for(self.get_root())
+        progress_window.set_modal(True)
+        progress_window.set_resizable(False)
+        progress_window.set_deletable(False)
+        progress_window.set_default_size(1, 1)
+        progress_window.set_content(toolbar_view)
+        progress_window.present()
+                
+        def import_in_background():
+            """Run import in background thread."""
+            error = None
+            result = None
+            
+            try:
+                result = self.dict_manager.import_dictionary(
+                    source_path=source_path,
+                    source_format=source_format
+                )
+            except FileNotFoundError as e:
+                error = _("Dictionary file not found")
+            except PermissionError as e:
+                error = _("Permission denied accessing dictionary")
+            except ValueError as e:
+                error = _("Invalid dictionary: %s") % str(e)
+            except RuntimeError as e:
+                error = _("Conversion failed: %s") % str(e)
+            except Exception as e:
+                error = _("Error importing dictionary: %s") % str(e)
+            
+            # Schedule UI update on main thread
+            GLib.idle_add(lambda: self._on_import_complete(result, error, progress_window))
+        
+        # Start background thread
+        thread = threading.Thread(target=import_in_background, daemon=True)
+        thread.start()
+
+    def _on_import_complete(self, result, error, progress_window):
+        """Handle import completion on main thread."""
+        progress_window.close()
+        
+        if error:
+            self._show_error(error)
+        elif result:
+            self._refresh_list()
+            self._show_notification(_("Dictionary imported successfully"))
+        else:
+            self._show_error(_("Failed to import dictionary"))
+        
+        return False  # Remove idle handler
 
     def _on_switch_toggled(self, switch, pspec, filename):
         """Handle enable/disable switch toggle."""

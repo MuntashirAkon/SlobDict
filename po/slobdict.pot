@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: slobdict\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-21 17:21-0800\n"
+"POT-Creation-Date: 2025-12-21 19:00-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -19,12 +19,12 @@ msgstr ""
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
 #. Title (center)
-#: slobdict/ui/dictionaries_dialog.py:19 slobdict/ui/dictionaries_dialog.py:41
+#: slobdict/ui/dictionaries_dialog.py:20 slobdict/ui/dictionaries_dialog.py:42
 #: slobdict/ui/main_window.py:154
 msgid "Dictionaries"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:36
+#: slobdict/ui/dictionaries_dialog.py:37
 msgid "Add dictionary"
 msgstr ""
 
@@ -46,136 +46,146 @@ msgstr[1] ""
 msgid "Items unknown"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:158
+#: slobdict/ui/dictionaries_dialog.py:159
 msgid "Select Dictionary"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:162
+#: slobdict/ui/dictionaries_dialog.py:163
 msgid "Open"
 msgstr ""
 
 #. Cancel button
-#: slobdict/ui/dictionaries_dialog.py:163
-#: slobdict/ui/dictionaries_dialog.py:267
-#: slobdict/ui/dictionaries_dialog.py:358 slobdict/ui/preferences_dialog.py:168
+#: slobdict/ui/dictionaries_dialog.py:164
+#: slobdict/ui/dictionaries_dialog.py:268
+#: slobdict/ui/dictionaries_dialog.py:416 slobdict/ui/preferences_dialog.py:168
 #: slobdict/ui/preferences_dialog.py:190 slobdict/ui/preferences_dialog.py:212
 msgid "Cancel"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:167
+#: slobdict/ui/dictionaries_dialog.py:168
 msgid "Slob Dictionaries (*.slob)"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:172
+#: slobdict/ui/dictionaries_dialog.py:173
 msgid "All Files"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:200
+#: slobdict/ui/dictionaries_dialog.py:201
 msgid "Unsupported file format."
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:208
+#: slobdict/ui/dictionaries_dialog.py:209
 msgid "Select Dictionary Format"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:220
+#: slobdict/ui/dictionaries_dialog.py:221
 msgid ""
 "<b>Select the dictionary format</b>\n"
 "\n"
 "<i>If unsure, choose 'Auto-detect'</i>"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:238
+#: slobdict/ui/dictionaries_dialog.py:239
 msgid "Auto-detect"
 msgstr ""
 
 #. Import button
-#: slobdict/ui/dictionaries_dialog.py:272
+#: slobdict/ui/dictionaries_dialog.py:273
 msgid "Import"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:302
-msgid "Dictionary imported successfully"
-msgstr ""
-
-#: slobdict/ui/dictionaries_dialog.py:304
-msgid "Failed to import dictionary"
-msgstr ""
-
-#: slobdict/ui/dictionaries_dialog.py:307
-msgid "Dictionary file not found"
-msgstr ""
-
-#: slobdict/ui/dictionaries_dialog.py:309
-msgid "Permission denied accessing dictionary"
+#: slobdict/ui/dictionaries_dialog.py:301
+msgid "Importing Dictionary"
 msgstr ""
 
 #: slobdict/ui/dictionaries_dialog.py:311
+msgid ""
+"Converting dictionary to SLOB format...\n"
+"This may take a while."
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:344
+msgid "Dictionary file not found"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:346
+msgid "Permission denied accessing dictionary"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:348
 #, python-format
 msgid "Invalid dictionary: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:313
+#: slobdict/ui/dictionaries_dialog.py:350
 #, python-format
 msgid "Conversion failed: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:315
+#: slobdict/ui/dictionaries_dialog.py:352
 #, python-format
 msgid "Error importing dictionary: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:332
+#: slobdict/ui/dictionaries_dialog.py:369
+msgid "Dictionary imported successfully"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:371
+msgid "Failed to import dictionary"
+msgstr ""
+
+#: slobdict/ui/dictionaries_dialog.py:390
 #, python-format
 msgid "Items: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:335
+#: slobdict/ui/dictionaries_dialog.py:393
 #, python-format
 msgid "Copyright: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:338
+#: slobdict/ui/dictionaries_dialog.py:396
 #, python-format
 msgid "License: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:341
+#: slobdict/ui/dictionaries_dialog.py:399
 #, python-format
 msgid "Source: %s"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:344
+#: slobdict/ui/dictionaries_dialog.py:402
 msgid "No metadata available"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:349
-#: slobdict/ui/dictionaries_dialog.py:386 slobdict/ui/preferences_dialog.py:254
+#: slobdict/ui/dictionaries_dialog.py:407
+#: slobdict/ui/dictionaries_dialog.py:444 slobdict/ui/preferences_dialog.py:254
 msgid "OK"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:356
+#: slobdict/ui/dictionaries_dialog.py:414
 msgid "Delete Dictionary?"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:357
+#: slobdict/ui/dictionaries_dialog.py:415
 #, python-format
 msgid "Are you sure you want to delete '%s'?"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:359
+#: slobdict/ui/dictionaries_dialog.py:417
 msgid "Delete"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:367
+#: slobdict/ui/dictionaries_dialog.py:425
 msgid "Dictionary deleted"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:369
+#: slobdict/ui/dictionaries_dialog.py:427
 msgid "Failed to delete dictionary"
 msgstr ""
 
-#: slobdict/ui/dictionaries_dialog.py:384 slobdict/ui/preferences_dialog.py:252
+#: slobdict/ui/dictionaries_dialog.py:442 slobdict/ui/preferences_dialog.py:252
 msgid "Error"
 msgstr ""
 

@@ -1,3 +1,11 @@
 .base-background {
   background-color: @theme_base_color;
 }
+
+.lightbulb-button {
+    color: #d4a500;
+}
+
+.delete-button {
+    color: #ff0000;
+}
