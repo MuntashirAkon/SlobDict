@@ -2,5 +2,6 @@ slobdict/app.py
 slobdict/ui/dictionaries_dialog.py
 slobdict/ui/main_window.py
 slobdict/ui/preferences_dialog.py
+slobdict/utils/utils.py
 data/ui/shortcuts.blp
 data/ui/window.blp

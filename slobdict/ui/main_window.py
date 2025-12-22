@@ -94,6 +94,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.connect("show", self.on_window_shown)
 
         # Register for settings changes
+        self.settings_manager.register_callback('appearance', self._on_force_dark_changed)
         self.settings_manager.register_callback('force_dark_mode', self._on_force_dark_changed)
         self.settings_manager.register_callback('enable_javascript', self._on_javascript_changed)
         self.settings_manager.register_callback('load_remote_content', self._on_remote_content_changed)
@@ -183,11 +184,8 @@ class MainWindow(Adw.ApplicationWindow):
         force_dark = self.settings_manager.get('force_dark_mode', True)
         self.http_server.set_dark_mode(force_dark)
 
-        if force_dark:
-            from ..utils.utils import load_dark_mode_css
-            self.webview.load_html(f"<html><body><style>{load_dark_mode_css()}</style></body></html>")
-        else:
-            self.webview.load_html("<html></html>")
+        from ..utils.utils import get_init_html
+        self.webview.load_html(get_init_html())
         
         # Enable/disable JavaScript
         enable_js = self.settings_manager.get('enable_javascript', True)
@@ -274,11 +272,8 @@ class MainWindow(Adw.ApplicationWindow):
             data_types = WebKit.WebsiteDataTypes.DISK_CACHE | WebKit.WebsiteDataTypes.MEMORY_CACHE
             manager.clear(data_types, 0, None, None, None)
             if self.webview.get_uri() is None or self.webview.get_uri() == "about:blank":
-                if force_dark:
-                    from ..utils.css_utils import load_dark_mode_css
-                    self.webview.load_html(f"<html><body><style>{load_dark_mode_css()}</style></body></html>")
-                else:
-                    self.webview.load_html("<html></html>")
+                from ..utils.utils import get_init_html
+                self.webview.load_html(get_init_html())
             else:
                 self.webview.reload()
 
