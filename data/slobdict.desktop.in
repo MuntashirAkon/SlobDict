@@ -4,6 +4,6 @@ Exec=@APP_NAME@
 Icon=@APP_ID@
 Terminal=false
 Type=Application
-Categories=Dictionary;GTK;
+Categories=Dictionary;Education;
 StartupNotify=true
 Keywords=word;synonym;definition;spelling;

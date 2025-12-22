@@ -1,0 +1,16 @@
+PyYAML
+beautifulsoup4
+biplist
+colorize-pinyin
+html5lib
+libzim>=1.0
+lxml
+marisa-trie
+mistune
+polib
+prompt_toolkit
+pyicu
+pymorphy3
+python-romkan-ng
+xxhash
+pyglossary
