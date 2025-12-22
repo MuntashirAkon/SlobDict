@@ -1,6 +1,23 @@
 # Slob Dictionary
 
-A `.slob` file viewer (e.g., a dictionary app) for Linux in GTK.
+Slob Dictionary is an application with a polished GTK 4 interface for exploring slob-formatted dictionaries on Linux, converting when necessary.
+
+![Lookup Interface](./data/screenshots/lookup-ui.png)
+
+## Key Features
+
+- Fast and simultaneous lookup across multiple dictionary files
+- Persistent lookup history to revisit entries effortlessly
+- Bookmarks for saving favorite definitions and terms
+- Native light/dark mode following your GNOME desktop theme
+
+## Supported Dictionary Formats
+
+Aard 2 (.slob), Almaany.com (SQLite3), AppleDict Binary(.dictionary, .data), AyanDict SQLite, Babylon (.BGL), cc-kedict, Crawler Directory(.crawler), CSV (.csv), DictionaryForMIDs(.mids), Dict.cc (SQLite3), Dict.cc (SQLite3) - Split, DICT.org file format (.index), dictunformat output file(.dictunformat), DigitalNK (SQLite3, N-Korean), ABBYY Lingvo DSL (.dsl), Kobo E-Reader Dictfile (.df), EDICT2 (CEDICT) (.u8), EDLIN(.edlin), FreeDict (.tei), Gettext Source (.po), Glossary Info (.info), JMDict (xml), JMnedict, Lingoes Source (.ldf), Makindo Medical Reference (SQLite3), Octopus MDict (.mdx), QuickDic version 6 (.quickdic), StarDict (.ifo), StarDict Textual File (.xml), Tabfile (.txt, .dic), Test Format File(.test), Wiktextract (.jsonl), WordNet, Wordset.org JSON directory, XDXF (.xdxf), XDXF with CSS and JS, XDXF Lax (.xdxf), Yomichan (.zip), Zim (.zim, for Kiwix).
+
+## Permissions Used
+
+The application requires network access for loading remote contents, but it is disabled by default for privacy.
 
 ## Building
 
