@@ -125,12 +125,12 @@ class SlobClient:
                         'id': str(match[0]),
                         "title": match[1],
                         "source": dict_id,
-                        "dictionary": dictionary['label']
+                        "dictionary": dictionary['label'],
                     })
             except Exception as e:
                 print(f"Error searching {dict_name}: {e}")
 
-        results.sort(key=lambda d: d['title'])
+        results.sort(key=lambda d: d['title'].casefold())
         return results[:limit]
 
     def _find_in_slob(self, slob, query: str, limit: int, request_id: int = None) -> List[str]:

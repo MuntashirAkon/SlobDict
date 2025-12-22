@@ -9,6 +9,9 @@ finish-args:
   - --socket=fallback-x11
   - --socket=wayland
   - --device=dri
+  # Add explicit GTK theme access for KDE
+  - --filesystem=xdg-config/gtk-4.0:ro
+  - --filesystem=xdg-config/gtkrc-2.0:ro
 build-options:
   build-args:
     - --share=network
