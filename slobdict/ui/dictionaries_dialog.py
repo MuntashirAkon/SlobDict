@@ -178,15 +178,141 @@ class DictionariesDialog(Adw.Window):
                 file = dialog.get_file()
                 if file:
                     path = file.get_path()
-                    result = self.slob_client.import_dictionary(path)
-                    if result:
-                        self._refresh_list()
-                        self._show_notification(_("Dictionary imported successfully"))
+                    # Check if file has .slob extension
+                    from pathlib import Path
+                    file_path = Path(path)
+                    
+                    if file_path.suffix.lower() == '.slob':
+                        # Direct import for SLOB files
+                        self._import_dictionary_with_format(path, source_format=None)
                     else:
-                        self._show_error(_("Failed to import dictionary"))
+                        # Show format selection for non-SLOB files
+                        self._show_format_selection_dialog(path)
         
         dialog.connect("response", on_response)
         dialog.show()
+
+    def _show_format_selection_dialog(self, source_path):
+        """Show dialog to select the dictionary format."""
+        supported_formats = self.dict_manager.get_supported_formats()
+        
+        if not supported_formats:
+            self._show_error(_("Unsupported file format."))
+            return
+        
+        # Create dialog
+        dialog = Adw.Window()
+        dialog.set_transient_for(self.get_root())
+        dialog.set_modal(True)
+        dialog.set_default_size(400, 300)
+        dialog.set_title(_("Select Dictionary Format"))
+        
+        # Main box
+        main_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        main_box.set_margin_top(12)
+        main_box.set_margin_bottom(12)
+        main_box.set_margin_start(12)
+        main_box.set_margin_end(12)
+        dialog.set_content(main_box)
+        
+        # Info label
+        info_label = Gtk.Label()
+        info_label.set_markup(_("<b>Select the dictionary format</b>\n\n<i>If unsure, choose 'Auto-detect'</i>"))
+        info_label.set_justify(Gtk.Justification.CENTER)
+        main_box.append(info_label)
+        
+        # Scrollable format list
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_hexpand(True)
+        scrolled.set_vexpand(True)
+        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        main_box.append(scrolled)
+        
+        # List box for formats
+        list_box = Gtk.ListBox()
+        list_box.set_selection_mode(Gtk.SelectionMode.SINGLE)
+        scrolled.set_child(list_box)
+        
+        # Add "Auto-detect" option first
+        auto_row = Gtk.ListBoxRow()
+        auto_label = Gtk.Label(label=_("Auto-detect"))
+        auto_label.set_margin_top(8)
+        auto_label.set_margin_bottom(8)
+        auto_label.set_margin_start(8)
+        auto_label.set_margin_end(8)
+        auto_row.set_child(auto_label)
+        list_box.append(auto_row)
+        list_box.select_row(auto_row)  # Select auto-detect by default
+        
+        # Add format options
+        format_rows = {}
+        for fmt_key, fmt_name in sorted(supported_formats.items()):
+            row = Gtk.ListBoxRow()
+            label = Gtk.Label(label=fmt_name)
+            label.set_margin_top(8)
+            label.set_margin_bottom(8)
+            label.set_margin_start(8)
+            label.set_margin_end(8)
+            label.set_halign(Gtk.Align.START)
+            row.set_child(label)
+            list_box.append(row)
+            format_rows[row] = fmt_key
+        
+        # Button box
+        button_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        button_box.set_halign(Gtk.Align.END)
+        main_box.append(button_box)
+        
+        # Cancel button
+        cancel_button = Gtk.Button(label=_("Cancel"))
+        cancel_button.connect("clicked", lambda btn: dialog.close())
+        button_box.append(cancel_button)
+        
+        # Import button
+        import_button = Gtk.Button(label=_("Import"))
+        import_button.set_css_classes(["suggested-action"])
+        button_box.append(import_button)
+        
+        def on_import_clicked(button):
+            selected_row = list_box.get_selected_row()
+            if selected_row is None:
+                return
+            
+            # Determine selected format
+            selected_format = None
+            if selected_row != auto_row:
+                selected_format = format_rows.get(selected_row)
+            
+            dialog.close()
+            self._import_dictionary_with_format(source_path, selected_format)
+        
+        import_button.connect("clicked", on_import_clicked)
+        dialog.present()
+
+    def _import_dictionary_with_format(self, source_path: str, source_format: str = None):
+        """Import dictionary with specified format."""
+        try:
+            result = self.dict_manager.import_dictionary(
+                source_path=source_path,
+                source_format=source_format
+            )
+            
+            if result:
+                self._refresh_list()
+                self._show_notification(_("Dictionary imported successfully"))
+            else:
+                self._show_error(_("Failed to import dictionary"))
+        
+        except FileNotFoundError:
+            self._show_error(_("Dictionary file not found"))
+        except PermissionError:
+            self._show_error(_("Permission denied accessing dictionary"))
+        except ValueError as e:
+            self._show_error(_("Invalid dictionary: %s") % str(e))
+        except RuntimeError as e:
+            self._show_error(_("Conversion failed: %s") % str(e))
+        except Exception as e:
+            self._show_error(_("Error importing dictionary: %s") % str(e))
 
     def _on_switch_toggled(self, switch, pspec, filename):
         """Handle enable/disable switch toggle."""
