@@ -10,8 +10,6 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
     """HTTP handler for dictionary requests."""
     
     slob_client = None
-    dark_mode = False
-    dark_mode_css = None
 
     def do_GET(self):
         """Handle GET requests."""
@@ -66,29 +64,6 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
 
         content = entry["content"]
         content_type = entry["content_type"]
-        
-        # Detect content type from key extension or content
-        if key.endswith('.css'):
-            content_type = "text/css; charset=utf-8"
-            if self.dark_mode:
-                content_str = content.decode('utf-8') if isinstance(content, bytes) else content
-                content = f"{content_str}\n{self.dark_mode_css}"
-        elif key.endswith('.js'):
-            content_type = "application/javascript; charset=utf-8"
-        elif key.endswith('.png'):
-            content_type = "image/png"
-        elif key.endswith('.jpg') or key.endswith('.jpeg'):
-            content_type = "image/jpeg"
-        elif key.endswith('.svg'):
-            content_type = "image/svg+xml; charset=utf-8"
-        elif key.endswith('.woff'):
-            content_type = "application/font-woff"
-        elif key.endswith('.ttf'):
-            content_type = "application/x-font-ttf"
-        elif key.endswith('.otf'):
-            content_type = "application/x-font-opentype"
-        elif key.endswith('.ico'):
-            content_type = "image/x-icon"
 
         content_bytes = content.encode('utf-8') if isinstance(content, str) else content
 
@@ -202,9 +177,6 @@ class HTTPServer_:
     def start(self):
         """Start HTTP server in background thread."""
         DictionaryHTTPHandler.slob_client = self.slob_client
-
-        from ..utils.utils import load_dark_mode_css
-        DictionaryHTTPHandler.dark_mode_css = load_dark_mode_css()
         self.server = HTTPServer(("127.0.0.1", self.port), DictionaryHTTPHandler)
         # Get actual port if we used 0 (OS assigns)
         self.actual_port = self.server.server_address[1]
@@ -212,9 +184,6 @@ class HTTPServer_:
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
         print(f"✓ HTTP server started on http://127.0.0.1:{self.port}")
-
-    def set_dark_mode(self, dark_mode):
-        DictionaryHTTPHandler.dark_mode = dark_mode
 
     def get_port(self):
         """Get the actual port the server is running on."""

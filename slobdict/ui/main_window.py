@@ -60,6 +60,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.navigation_history = []  # For back/forward
         self.current_history_index = -1
         self.current_entry = None  # Track current entry being displayed
+        self.current_style = None  # Stylesheet tracking
 
         # Track pending tasks for cancellation
         self.pending_search_task = None
@@ -115,7 +116,8 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Create and add webview
         try:
-            self.webview = WebKit.WebView()
+            self.manager = WebKit.UserContentManager()
+            self.webview = WebKit.WebView(user_content_manager=self.manager)
             self._apply_webview_settings()
 
             scrolled = Gtk.ScrolledWindow()
@@ -182,10 +184,10 @@ class MainWindow(Adw.ApplicationWindow):
         
         # Force dark mode
         force_dark = self.settings_manager.get('force_dark_mode', True)
-        self.http_server.set_dark_mode(force_dark)
+        self._apply_dark_mode_css(force_dark)
 
         from ..utils.utils import get_init_html
-        self.webview.load_html(get_init_html())
+        self.webview.load_html(get_init_html(force_dark))
         
         # Enable/disable JavaScript
         enable_js = self.settings_manager.get('enable_javascript', True)
@@ -197,6 +199,25 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Context menu
         self.webview.connect("context-menu", self._on_context_menu)
+
+    def _apply_dark_mode_css(self, force_dark: bool):
+        """Apply force-dark CSS when enabled"""
+        if not hasattr(self, "manager"):
+            return
+
+        if self.current_style:
+            self.manager.remove_style_sheet(self.current_style)
+
+        if force_dark:
+            from ..utils.utils import load_dark_mode_css
+            self.current_style = WebKit.UserStyleSheet(
+                load_dark_mode_css(),
+                WebKit.UserContentInjectedFrames.ALL_FRAMES, 
+                WebKit.UserStyleLevel.USER, 
+                None, 
+                None
+            )
+            self.manager.add_style_sheet(self.current_style)
 
     def _on_context_menu(self, webview, context_menu, hit_test_result):
         """Handle WebView context menu customization."""
@@ -266,16 +287,11 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_force_dark_changed(self, key, value):
         """Handle force dark mode setting change."""
         force_dark = self.settings_manager.get('force_dark_mode', True)
-        self.http_server.set_dark_mode(force_dark)
+        self._apply_dark_mode_css(force_dark)
         if hasattr(self, 'webview'):
-            manager = self.webview.get_network_session().get_website_data_manager()
-            data_types = WebKit.WebsiteDataTypes.DISK_CACHE | WebKit.WebsiteDataTypes.MEMORY_CACHE
-            manager.clear(data_types, 0, None, None, None)
             if self.webview.get_uri() is None or self.webview.get_uri() == "about:blank":
                 from ..utils.utils import get_init_html
-                self.webview.load_html(get_init_html())
-            else:
-                self.webview.reload()
+                self.webview.load_html(get_init_html(force_dark))
 
     def _on_javascript_changed(self, key, value):
         """Handle JavaScript setting change."""

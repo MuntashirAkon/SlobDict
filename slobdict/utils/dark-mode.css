@@ -1,134 +1,31 @@
 /* SPDX-License-Identifier: AGPL-3.0-or-later */
-@media (prefers-color-scheme: dark) {
-    :root {
-        --color-text: #e5e5e5;
-        --color-text-secondary: #a8a8a8;
-        --color-bg: #1f1f1f;
-        --color-bg-alt: #2a2a2a;
-        --color-primary: #3dd5f3;
-        --color-border: #424242;
-        --color-link: #3dd5f3;
-        --color-link-visited: #d78ef0;
-    }
 
-    /* Base */
+@media (prefers-color-scheme: dark) {
+    .ROOT_CSS {}
+
     html {
-        background-color: var(--color-bg);
-        color: var(--color-text);
+        filter: invert(1) hue-rotate(180deg) !important;
+        background-color: var(--color-bg-inverted) !important;
     }
 
     body {
-        background-color: var(--color-bg);
-        color: var(--color-text);
+        background-color: var(--color-bg-inverted) !important;
     }
 
-    /* Preserve images and media */
+    * {
+        /* Switch from subpixel to standard grayscale anti-aliasing */
+        text-rendering: optimizeLegibility !important;
+        -webkit-font-smoothing: antialiased !important;
+
+        /* Manually thicken the glyphs */
+        -webkit-text-stroke: .2px !important;
+    }
+
     img,
-    picture,
     video,
+    iframe,
     canvas,
-    svg,
-    iframe {
-        filter: none;
-    }
-
-    embed,
-    object {
-        filter: none;
-    }
-
-    /* Links */
-    a {
-        color: var(--color-link);
-    }
-
-    a:visited {
-        color: var(--color-link-visited);
-    }
-
-    a:hover {
-        color: #5de0f8;
-    }
-
-    /* Code blocks */
-    code,
-    pre {
-        background-color: var(--color-bg-alt);
-        color: var(--color-text);
-        border: 1px solid var(--color-border);
-    }
-
-    /* Tables */
-    table {
-        border-color: var(--color-border);
-    }
-
-    th,
-    td {
-        border-color: var(--color-border);
-    }
-
-    th {
-        background-color: var(--color-bg-alt);
-        color: var(--color-text);
-    }
-
-    /* Form elements */
-    input,
-    textarea,
-    select {
-        background-color: var(--color-bg-alt);
-        color: var(--color-text);
-        border: 1px solid var(--color-border);
-    }
-
-    input:focus,
-    textarea:focus,
-    select:focus {
-        outline: 2px solid var(--color-primary);
-        outline-offset: -1px;
-    }
-
-    /* Buttons */
-    button {
-        background-color: var(--color-bg-alt);
-        color: var(--color-text);
-        border: 1px solid var(--color-border);
-    }
-
-    button:hover {
-        background-color: #333;
-    }
-
-    /* Blockquotes */
-    blockquote {
-        border-left: 3px solid var(--color-primary);
-        color: var(--color-text-secondary);
-        padding-left: 12px;
-    }
-
-    /* Horizontal rules */
-    hr {
-        border-color: var(--color-border);
-    }
-
-    /* Headers */
-    h1, h2, h3, h4, h5, h6 {
-        color: var(--color-text);
-    }
-
-    /* Emphasized text */
-    strong {
-        color: var(--color-text);
-    }
-
-    em {
-        color: var(--color-text-secondary);
-    }
-
-    /* Selection */
-    ::selection {
-        background-color: var(--color-primary);
-        color: var(--color-bg);
+    [style*="background-image"] {
+        filter: invert(1) hue-rotate(180deg) !important;
     }
 }

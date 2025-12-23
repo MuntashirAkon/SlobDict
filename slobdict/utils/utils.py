@@ -1,16 +1,42 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
-from gi.repository import Gtk, Gdk
+from gi.repository import Adw, Gtk, Gdk
 from pathlib import Path
 import os
 from ..constants import app_id
+
+
+def is_dark_mode() -> bool:
+    """Check if the app is in dark mode."""
+    style_manager = Adw.StyleManager.get_default()
+    return style_manager.get_dark()
+
+def invert_color(color_str: str, hue_rotate_deg: int = 180) -> str:
+    """Invert a color"""
+    # Parse using GTK
+    rgba = Gdk.RGBA()
+    if not rgba.parse(color_str):
+        rgba.parse('#000000')
+    
+    r, g, b = rgba.red, rgba.green, rgba.blue
+    
+    # Invert RGB
+    r, g, b = 1 - r, 1 - g, 1 - b
+
+    # Return as hex
+    return '#{:02x}{:02x}{:02x}'.format(
+        int(r * 255),
+        int(g * 255),
+        int(b * 255)
+    )
 
 def load_dark_mode_css() -> str:
     """Load dark mode CSS file."""
     css_path = Path(__file__).parent / "dark-mode.css"
     try:
+        bg_color = invert_color(get_theme_colors()['--color-bg'])
         with open(css_path, 'r') as f:
-            return f.read()
+            return str(f.read()).replace('.ROOT_CSS {}', f':root {{ --color-bg-inverted: {bg_color}; }}')
     except FileNotFoundError:
         print(f"Dark mode CSS not found at {css_path}")
         return ""
@@ -26,13 +52,16 @@ def get_config_dir():
     config_dir.mkdir(parents=True, exist_ok=True)
     return config_dir
 
-def get_init_html() -> str:
+def get_init_html(force_dark: bool) -> str:
     html_path = Path(__file__).parent / "intro.html"
     theme_colors = get_theme_colors()
-    css_vars = '; '.join([f"{k}: {v}" for k,v in theme_colors.items()])
+    if is_dark_mode() and force_dark: # Force dark => color inversion
+        css_vars = '; '.join([f"{k}: {invert_color(v)}" for k,v in theme_colors.items()])
+    else:
+        css_vars = '; '.join([f"{k}: {v}" for k,v in theme_colors.items()])
     try:
         replacements = {
-            '.ROOT_CSS{}': f':root {{ {css_vars} }}',
+            '.ROOT_CSS {}': f':root {{ {css_vars} }}',
             '{SUBTITLE}': _('Start typing a word in the search field to see its definitions here.'),
             '{HINT}': _('Focus lookup field')
         }
@@ -47,7 +76,7 @@ def get_init_html() -> str:
 
 from gi.repository import Gtk
 
-def get_theme_colors(webview=None):
+def get_theme_colors():
     # Get realized style context
     temp = Gtk.Window()
     temp.realize()
@@ -63,22 +92,27 @@ def get_theme_colors(webview=None):
     
     # Core GTK theme colors
     colors = {
-        # Backgrounds
-        '--window-bg': get_color('theme_base_color', '#ffffff'),
-        '--window-bg-alt': get_color('theme_bg_color', '#f6f6f6'),
+        # Text colors
+        '--color-text': get_color('theme_fg_color', '#e5e5e5'),
+        '--color-text-secondary': get_color('theme_unfocused_fg_color', '#a8a8a8'),
+        
+        # Backgrounds  
+        '--color-bg': get_color('theme_base_color', '#1f1f1f'),
+        '--color-bg-alt': get_color('theme_bg_color', '#2a2a2a'),
         '--card-bg': get_color('theme_selected_bg_color', 'rgba(255,255,255,0.85)'),
         
-        # Text
-        '--fg-color': get_color('theme_fg_color', '#000000'),
-        '--muted-color': get_color('theme_unfocused_fg_color', '#666666'),
+        # Primary/Accent (GTK blue)
+        '--color-primary-bg': get_color('accent_bg_color', '#3584e4'),  
+        '--color-primary': get_color('accent_fg_color', '#ffffff'),
+        '--color-accent': get_color('accent_color', '#3dd5f3'),
         
-        # Accents (libadwaita primary blues)
-        '--accent-bg': get_color('accent_bg_color', '#3584e4'),
-        '--accent-fg': get_color('accent_fg_color', '#ffffff'),
-        '--accent-subtle': get_color('accent_color', '#2398f2'),
+        # Links (no direct GTK equiv, use accent variant)
+        '--color-link-visited': get_color('link_visited_color', '#d78ef0'),
         
-        # Borders & Shadows
-        '--border-color': get_color('borders', '#ddd'),
+        # Borders
+        '--color-border': get_color('borders', '#424242'),
+        
+        # Shadows
         '--shadow': get_color('shadow', 'rgba(0,0,0,0.1)'),
     }
     

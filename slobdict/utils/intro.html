@@ -6,7 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
 
   <style>
-    .ROOT_CSS{}
+    .ROOT_CSS {}
 
     :root {
       color-scheme: light dark;
@@ -25,8 +25,8 @@
     body {
       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
                    sans-serif;
-      background: var(--bg-color);
-      color: var(--fg-color);
+      background: var(--color-bg);
+      color: var(--color-text);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -39,14 +39,7 @@
     }
 
     .card {
-      /* background: var(--bg-color-alt); */
-      /* border-radius: 18px; */
-      /* border: 1px solid var(--border-color); */
-      /* box-shadow:
-        0 18px 40px rgba(15, 23, 42, 0.18),
-        0 0 0 1px rgba(255, 255, 255, 0.4); */
       padding: 24px 22px 22px;
-      /* backdrop-filter: blur(10px); */
     }
 
     .icon-wrap {
@@ -71,14 +64,14 @@
     .subtitle {
       text-align: center;
       font-size: 0.95rem;
-      color: var(--muted-color);
+      color: var(--color-text-secondary);
       margin-bottom: 18px;
     }
 
     .hint {
       text-align: center;
       font-size: 0.9rem;
-      color: var(--accent-color);
+      color: var(--color-accent);
       border-radius: 999px;
       padding: 7px 12px 8px;
       background: rgba(37, 99, 235, 0.08);
