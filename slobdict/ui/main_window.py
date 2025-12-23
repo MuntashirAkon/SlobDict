@@ -38,10 +38,11 @@ class MainWindow(Adw.ApplicationWindow):
     results_list = Gtk.Template.Child()
     webview_container = Gtk.Template.Child()
 
-    def __init__(self, application, settings_manager):
+    def __init__(self, application, settings_manager, slob_client):
         super().__init__(application=application)
         
         self.settings_manager = settings_manager
+        self.slob_client = slob_client
 
         # Load custom CSS
         css_provider = Gtk.CssProvider()
@@ -67,10 +68,8 @@ class MainWindow(Adw.ApplicationWindow):
         self.pending_lookup_task = None
         self.request_counter = 0
         self.current_search_request_id = None
-        self.current_lookup_request_id = None
+        self.scheduled_selected_lookup_item = None
 
-        # Initialize slob backend
-        self.slob_client = SlobClient(self._on_dictionary_updated)
 
         # Initialize DB
         self.bookmarks_db = BookmarksDB()
@@ -310,7 +309,7 @@ class MainWindow(Adw.ApplicationWindow):
             # Blocks remote resources by redirecting them
             request.set_uri("about:blank")
 
-    def _on_dictionary_updated(self):
+    def on_dictionary_updated(self):
         if hasattr(self, 'search_entry'):
             self._on_search_changed(self.search_entry)
         if hasattr(self, 'history_search_entry'):
@@ -437,17 +436,10 @@ class MainWindow(Adw.ApplicationWindow):
         
         # Only update UI if this request is still current
         if request_id == self.current_search_request_id:
-            GLib.idle_add(self._populate_results, results)
+            GLib.idle_add(self._populate_results, results, request_id)
     
-    def _populate_results(self, results: List[Dict]):
+    def _populate_results(self, results: List[Dict], request_id: Optional[int] = None):
         """Populate results list."""
-        # Only disconnect if signal is already connected
-        try:
-            self.results_list.disconnect_by_func(self._on_result_selected)
-        except TypeError:
-            # Signal not connected yet, that's fine
-            pass
-        
         self.row_to_result.clear()
 
         # Clear existing rows
@@ -485,8 +477,12 @@ class MainWindow(Adw.ApplicationWindow):
             
             self.results_list.append(row)
 
-        # Reconnect signal after populating
-        self.results_list.connect("row-selected", self._on_result_selected)
+        if self.scheduled_selected_lookup_item and request_id == self.current_search_request_id:
+            print(f"Opening {self.scheduled_selected_lookup_item}")
+            source = self.scheduled_selected_lookup_item['source']
+            key_id = self.scheduled_selected_lookup_item['id']
+            self.scheduled_selected_lookup_item = None
+            self._activate_row_by_ids(source, key_id)
 
     def _populate_bookmarks(self, filter_query: str = ""):
         """Populate bookmarks list with optional filtering."""
@@ -727,7 +723,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.history_search_entry.set_visible(False)
         self.search_entry.grab_focus()
         self._populate_results([])
-        self._on_dictionary_updated()
+        self.on_dictionary_updated()
 
     def action_bookmarks(self, action, param):
         """Switch to bookmarks view - register as app.bookmarks action."""
@@ -750,4 +746,62 @@ class MainWindow(Adw.ApplicationWindow):
         self.history_search_entry.set_visible(True)
         self.history_search_entry.grab_focus()
         self._populate_history()
-        self._on_dictionary_updated()
+        self.on_dictionary_updated()
+
+    def perform_lookup(self, search: str):
+        self.current_view = "lookup"
+        self._update_sidebar_title()
+        self.search_entry.set_visible(True)
+        self.history_search_entry.set_visible(False)
+        self.search_entry.set_text(search)
+        self.search_entry.grab_focus()
+
+    def perform_lookup_and_go(self, search: str, key: str, key_id: int, source: str):
+        self.current_view = "lookup"
+        self._update_sidebar_title()
+        self.search_entry.set_visible(True)
+        self.history_search_entry.set_visible(False)
+        self.scheduled_selected_lookup_item = {
+            'id': key_id,
+            'source': source
+        }
+        self.search_entry.set_text(search)
+        self.search_entry.grab_focus()
+
+    def _activate_row_by_ids(self, source: str, key_id: int) -> Gtk.ListBoxRow:
+        """
+        Find and activate Gtk.ListBoxRow by source and key_id.
+        
+        Args:
+            source: Dictionary identifier
+            key_id: Key identifier within dictionary
+        """
+        if not hasattr(self, 'results_list'):
+            return None
+        
+        # Search through row_to_result mapping
+        target_row = None
+        key_id = str(key_id)
+        for row, result_data in self.row_to_result.items():
+            if result_data['source'] == source and result_data['id'] == key_id:
+                target_row = row
+                break
+        
+        if target_row:
+            # Select the row
+            self.results_list.select_row(target_row)
+            # Scroll to row using adjustment
+            adjustment = self.results_list.get_adjustment()
+            if adjustment:
+                # Calculate scroll position to center the row
+                allocation = target_row.get_allocation()
+                page_size = adjustment.get_page_size()
+                row_center = allocation.y + allocation.height / 2
+                target_scroll = max(0, row_center - page_size / 2)
+                
+                # Animate scroll to position
+                adjustment.set_value(target_scroll)
+                print(f"Activated & scrolled to row: {source}:{key_id}")
+            return target_row
+        
+        return None

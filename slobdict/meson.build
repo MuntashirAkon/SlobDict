@@ -28,8 +28,9 @@ run_target('run',
 # Install sources
 py_sources = [
   '__init__.py',
-  'main.py',
   'app.py',
+  'main.py',
+  'search_provider.py',
 ]
 PY_INSTALLDIR.install_sources(py_sources, subdir: meson.project_name() )
 

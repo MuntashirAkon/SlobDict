@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: slobdict\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-12-22 05:36-0800\n"
+"POT-Creation-Date: 2025-12-23 07:04-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -18,9 +18,15 @@ msgstr ""
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=INTEGER; plural=EXPRESSION;\n"
 
+#. Fallback if lookup fails
+#: slobdict/search_provider.py:268
+#, python-format
+msgid "View definition of %s"
+msgstr ""
+
 #. Title (center)
 #: slobdict/ui/dictionaries_dialog.py:20 slobdict/ui/dictionaries_dialog.py:42
-#: slobdict/ui/main_window.py:155
+#: slobdict/ui/main_window.py:157
 msgid "Dictionaries"
 msgstr ""
 
@@ -189,62 +195,62 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
-#: slobdict/ui/main_window.py:128
+#: slobdict/ui/main_window.py:130
 #, python-format
 msgid "WebKit unavailable: %s"
 msgstr ""
 
-#: slobdict/ui/main_window.py:148 slobdict/ui/main_window.py:173
-#: slobdict/ui/main_window.py:210 data/ui/window.blp:23
+#: slobdict/ui/main_window.py:150 slobdict/ui/main_window.py:175
+#: slobdict/ui/main_window.py:231 data/ui/window.blp:23
 msgid "Lookup"
 msgstr ""
 
-#: slobdict/ui/main_window.py:149 slobdict/ui/main_window.py:175
+#: slobdict/ui/main_window.py:151 slobdict/ui/main_window.py:177
 #: slobdict/ui/preferences_dialog.py:110
 msgid "Bookmarks"
 msgstr ""
 
-#: slobdict/ui/main_window.py:150 slobdict/ui/main_window.py:177
+#: slobdict/ui/main_window.py:152 slobdict/ui/main_window.py:179
 #: slobdict/ui/preferences_dialog.py:90
 msgid "History"
 msgstr ""
 
-#: slobdict/ui/main_window.py:156 slobdict/ui/preferences_dialog.py:21
+#: slobdict/ui/main_window.py:158 slobdict/ui/preferences_dialog.py:21
 #: slobdict/ui/preferences_dialog.py:29
 msgid "Preferences"
 msgstr ""
 
-#: slobdict/ui/main_window.py:157
+#: slobdict/ui/main_window.py:159
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: slobdict/ui/main_window.py:158
+#: slobdict/ui/main_window.py:160
 #, python-format
 msgid "About %s"
 msgstr ""
 
-#: slobdict/ui/main_window.py:163
+#: slobdict/ui/main_window.py:165
 msgid "Quit"
 msgstr ""
 
-#: slobdict/ui/main_window.py:219
+#: slobdict/ui/main_window.py:240
 msgid "Open Link"
 msgstr ""
 
-#: slobdict/ui/main_window.py:500
+#: slobdict/ui/main_window.py:513
 msgid "No bookmarks"
 msgstr ""
 
-#: slobdict/ui/main_window.py:580
+#: slobdict/ui/main_window.py:593
 msgid "No history"
 msgstr ""
 
 #. Reuse history_search_entry for bookmarks filtering
-#: slobdict/ui/main_window.py:723
+#: slobdict/ui/main_window.py:736
 msgid "Filter bookmarks..."
 msgstr ""
 
-#: slobdict/ui/main_window.py:733 data/ui/window.blp:53
+#: slobdict/ui/main_window.py:746 data/ui/window.blp:53
 msgid "Filter history..."
 msgstr ""
 
@@ -384,11 +390,11 @@ msgstr ""
 msgid "Failed to clear cache"
 msgstr ""
 
-#: slobdict/utils/utils.py:36
+#: slobdict/utils/utils.py:65
 msgid "Start typing a word in the search field to see its definitions here."
 msgstr ""
 
-#: slobdict/utils/utils.py:37
+#: slobdict/utils/utils.py:66
 msgid "Focus lookup field"
 msgstr ""
 

@@ -12,6 +12,9 @@ finish-args:
   # Add explicit GTK theme access for KDE
   - --filesystem=xdg-config/gtk-4.0:ro
   - --filesystem=xdg-config/gtkrc-2.0:ro
+  # For D-Bus
+  - --own-name=dev.muntashir.SlobDictGTK
+  - --own-name=dev.muntashir.SlobDictGTK.*
 build-options:
   build-args:
     - --share=network

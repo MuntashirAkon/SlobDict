@@ -3,21 +3,35 @@
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("Gio", "2.0")
 
-from gi.repository import Gtk, Adw, Gio
+import os
+from gi.repository import Gtk, Adw, Gio, GLib
 from .ui.main_window import MainWindow
+from .constants import app_id
+from .search_provider import SlobDictSearchProvider
+
 
 class SlobDictApplication(Adw.Application):
     """Main GNOME application."""
 
     def __init__(self):
         super().__init__(
-            application_id='dev.muntashir.SlobDictGTK',
+            application_id=app_id,
             flags=Gio.ApplicationFlags.DEFAULT_FLAGS
         )
 
         from .backend.settings_manager import SettingsManager
         self.settings_manager = SettingsManager()
+
+        # Initialize dictionary backend early
+        # This allows search provider to work even when no window is open
+        self.slob_client = self._init_slob_client()
+
+        # D-Bus search provider
+        self.search_provider = None
+        self.search_provider_registration = None
+        self.dbus_connection = None
 
         # Application actions
         self._setup_actions()
@@ -26,6 +40,80 @@ class SlobDictApplication(Adw.Application):
 
         self._apply_appearance()
         self.settings_manager.register_callback('appearance', self._on_appearance_changed)
+
+    def _init_slob_client(self):
+        """
+        Initialize the dictionary backend without needing a window.
+        
+        This runs at app startup so that:
+        1. Search provider can access it immediately
+        2. Dictionary works before any window is created
+        3. No UI overhead in search operations
+        
+        Returns:
+            SlobManager instance or None if initialization fails
+        """
+        try:
+            from .backend.slob_client import SlobClient
+            return SlobClient(self._on_dictionary_updated)
+        except Exception as e:
+            print(f"Failed to initialize slob_client: {e}")
+            return None
+
+    def do_dbus_register(self, connection, object_path):
+        """
+        Override to register D-Bus SearchProvider2 interface.
+        Called when the application is registered on D-Bus.
+        
+        Note: In Python GObject bindings, this method receives connection and object_path
+        as positional arguments, different from the C signature.
+        """
+        try:
+            # Store connection for later use in do_dbus_unregister
+            self.dbus_connection = connection
+            
+            # Only register search provider on GNOME
+            desktop = os.environ.get('XDG_CURRENT_DESKTOP', '')
+            if 'GNOME' not in desktop:
+                return True
+
+            # Create search provider
+            self.search_provider = SlobDictSearchProvider(self)
+
+            # Register the interface
+            provider_path = f"{object_path}/SearchProvider"
+            self.search_provider_registration = connection.register_object(
+                provider_path,
+                self.search_provider.interface_info,
+                self.search_provider.handle_method_call,
+                None,
+                None
+            )
+
+            print(f"SearchProvider2 interface registered at {provider_path}")
+            return True
+
+        except Exception as e:
+            print(f"Failed to register SearchProvider2: {e}")
+            return False
+
+    def do_dbus_unregister(self, connection, object_path):
+        """
+        Override to unregister D-Bus SearchProvider2 interface.
+        Called when the application is unregistered from D-Bus.
+        
+        Note: In Python GObject bindings, this method receives connection and object_path
+        as positional arguments, different from the C signature.
+        """
+        if self.search_provider_registration is not None:
+            try:
+                connection.unregister_object(self.search_provider_registration)
+                self.search_provider_registration = None
+            except Exception as e:
+                print(f"Failed to unregister SearchProvider2: {e}")
+
+        self.search_provider = None
+        self.dbus_connection = None
 
     def _setup_actions(self):
         """Set up application menu actions."""
@@ -55,7 +143,7 @@ class SlobDictApplication(Adw.Application):
 
     def on_activate(self, app):
         """Callback for application activation."""
-        window = MainWindow(application=self, settings_manager=self.settings_manager)
+        window = MainWindow(application=self, settings_manager=self.settings_manager, slob_client=self.slob_client)
         window.present()
 
     def _apply_appearance(self):
@@ -72,13 +160,17 @@ class SlobDictApplication(Adw.Application):
     def _on_appearance_changed(self, key, value):
         """Handle appearance setting change."""
         self._apply_appearance()
-
+    
+    def _on_dictionary_updated(self):
+        window = self.get_active_window()
+        if window:
+            window.on_dictionary_updated()
 
     def on_dictionaries(self, action, param):
         """Open dictionaries manager."""
         from .ui.dictionaries_dialog import DictionariesDialog
         window = self.get_active_window()
-        dialog = DictionariesDialog(window, window.slob_client)
+        dialog = DictionariesDialog(window, self.slob_client)
         dialog.set_visible(True)
 
     def on_preferences(self, action, param):
@@ -104,7 +196,7 @@ class SlobDictApplication(Adw.Application):
 
     def on_about(self, action, param):
         """Open about dialog."""
-        from .constants import version, app_id
+        from .constants import version
         about = Adw.AboutWindow(transient_for=self.get_active_window())
         about.set_application_name("Slob Dictionary")
         about.set_application_icon(app_id)

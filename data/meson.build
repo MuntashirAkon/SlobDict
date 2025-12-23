@@ -24,6 +24,22 @@ configure_file(
   install_dir: join_paths(get_option('datadir'), 'applications')
 )
 
+configure_file(
+  input: '@0@.search-provider.ini.in'.format(meson.project_name()),
+  output: '@0@.search-provider.ini'.format(APPLICATION_ID),
+  configuration: conf,
+  install: true,
+  install_dir: join_paths(get_option('datadir'), 'gnome-shell/search-providers')
+)
+
+configure_file(
+  input: '@0@.service.in'.format(meson.project_name()),
+  output: '@0@.service'.format(APPLICATION_ID),
+  configuration: conf,
+  install: true,
+  install_dir: join_paths(get_option('datadir'), 'dbus-1/services')
+)
+
 gnome.compile_resources(meson.project_name(),
   join_paths(meson.current_build_dir(), meson.project_name()+'.gresource.xml'),
   gresource_bundle: true,
