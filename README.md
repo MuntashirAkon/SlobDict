@@ -49,7 +49,8 @@ or
 
 ## Credits
 
-This project followed a template from https://github.com/timlau/adw_template_app.
+- https://github.com/timlau/adw_template_app
+- https://github.com/cosimoc/gnome-example-search-provider
 
 ## License
 
