@@ -23,9 +23,9 @@ To lookup dictionaries directly from GNOME Activities, you need to enable the fe
 ## URI Support
 
 The application currently supports the following URIs:
-- `slobdict://lookup/{search_term}`: Lookup the given `{search_term}` (e.g., `slobdict://lookup/hello`)
-- `slobdict://go/{term}`: Lookup the given `{term}` and also open the definition of the first matching result (e.g., `slobdict://go/hello`)
-- `slobdict://go/{search_term}/{term}`: Lookup the given `{search_term}` and also open the definition of the first matching result of `{term}` (e.g., `slobdict://go/hell/hello`)
+- `slobdict://search/{search_term}`: Look for the given `{search_term}` (e.g., `slobdict://search/hello`)
+- `slobdict://lookup/{term}`: Lookup the given `{term}` and also open the definition of the first matching result (e.g., `slobdict://lookup/hello`)
+- `slobdict://lookup/{search_term}/{term}`: Lookup the given `{search_term}` and also open the definition of the first matching result of `{term}` (e.g., `slobdict://lookup/hell/hello`)
 
 ## Permissions Used
 

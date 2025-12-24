@@ -260,9 +260,9 @@ class SlobDictApplication(Adw.Application):
         Handle slobdict:// URI schemes.
         
         Supported formats:
-        - slobdict://lookup/{search_term}
-        - slobdict://go/{word}
-        - slobdict://go/{search_term}/{word}
+        - slobdict://search/{search_term}
+        - slobdict://lookup/{word}
+        - slobdict://lookup/{search_term}/{word}
         """
         try:
             from urllib.parse import urlparse, unquote
@@ -274,7 +274,7 @@ class SlobDictApplication(Adw.Application):
                 return False
 
             action = parsed.netloc
-            if action not in ('lookup', 'go'):
+            if action not in ('lookup', 'search'):
                 print(f"URI: Invalid action {action}")
                 return False
             
@@ -282,27 +282,27 @@ class SlobDictApplication(Adw.Application):
             if not path_parts:
                 return False
                         
-            if action == 'lookup':
-                # slobdict://lookup/{search_term}
+            if action == 'search':
+                # slobdict://search/{search_term}
                 if len(path_parts) == 2:
                     search_term = path_parts[1]
-                    GLib.idle_add(self._perform_lookup, search_term)
-                    print(f"URI: lookup '{search_term}'")
+                    GLib.idle_add(self._perform_search, search_term)
+                    print(f"URI: search '{search_term}'")
                 else:
-                    print("URI: Invalid lookup format, expects exactly 1 argument: search_term")
-            elif action == 'go':
-                # slobdict://go/{word} OR slobdict://go/{search_term}/{word}
+                    print("URI: Invalid search format, expects exactly 1 argument: search_term")
+            elif action == 'lookup':
+                # slobdict://lookup/{word} OR slobdict://lookup/{search_term}/{word}
                 if len(path_parts) == 2:
-                    # slobdict://go/{word}
+                    # slobdict://lookup/{word}
                     word = path_parts[1]
-                    GLib.idle_add(self._perform_go, word)
-                    print(f"URI: go '{word}'")
+                    GLib.idle_add(self._perform_lookup, word)
+                    print(f"URI: lookup '{word}'")
                 elif len(path_parts) >= 3:
-                    # slobdict://go/{search_term}/{word}
-                    search_term = '/'.join(path_parts[1:-1])  # Everything except last
-                    word = path_parts[-1]  # Last segment is the word
-                    GLib.idle_add(self._perform_go_with_search, search_term, word)
-                    print(f"URI: go search='{search_term}' word='{word}'")
+                    # slobdict://lookup/{search_term}/{word}
+                    search_term = path_parts[1]
+                    word = path_parts[2]
+                    GLib.idle_add(self._perform_lookup_with_search, search_term, word)
+                    print(f"URI: lookup search='{search_term}' word='{word}'")
                 else:
                     print("URI: Invalid lookup format, expects 1 or 2 arguments: word and search_term")
         except Exception as e:
@@ -311,7 +311,7 @@ class SlobDictApplication(Adw.Application):
             traceback.print_exc()
         return False
 
-    def _perform_lookup(self, search_term):
+    def _perform_search(self, search_term):
         """Perform regular search."""
         window: MainWindow = self.get_active_window()
         if not window:
@@ -321,7 +321,7 @@ class SlobDictApplication(Adw.Application):
         if window:
             window.perform_lookup(search_term)
 
-    def _perform_go(self, word):
+    def _perform_lookup(self, word):
         """Lookup and open first matched word."""
         window: MainWindow = self.get_active_window()
         if not window:
@@ -331,7 +331,7 @@ class SlobDictApplication(Adw.Application):
         if window:
             window.perform_lookup(word, select_first=True)
 
-    def _perform_go_with_search(self, search_term, word):
+    def _perform_lookup_with_search(self, search_term, word):
         """Search for term, then select specific word."""
         window: MainWindow = self.get_active_window()
         if not window:
