@@ -406,7 +406,7 @@ class SlobDictApplication(Adw.Application):
             window.present()
             
             if namespace.action == 'search':
-                window.perform_lookup(search_term)
+                window.perform_lookup(namespace.search_term)
                 print(f"GUI: Search for '{namespace.search_term}'")
                 return False
             elif namespace.action == 'lookup':
