@@ -189,6 +189,67 @@ def patch_lxml_build_command(json_file: str) -> bool:
         print(f"Error patching JSON: {e}")
         return False
 
+def patch_pygments_build_command(json_file: str) -> bool:
+    """
+    Modify pygments module in JSON to use --target instead of --prefix.
+    
+    Args:
+        json_file: Path to python3-modules.json
+        
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+        
+        # Find and patch pygments module
+        patched = False
+        for module in data.get('modules', []):
+            if module.get('name') == 'python3-pygments':
+                # Get current build-commands
+                build_commands = module.get('build-commands', [])
+                
+                # Patch the pip install command
+                new_commands = []
+                for cmd in build_commands:
+                    if 'pip3 install' in cmd and 'pygments' in cmd:
+                        # Replace --prefix=${FLATPAK_DEST} with --target
+                        cmd = cmd.replace(
+                            '--prefix=${FLATPAK_DEST}',
+                            '--target=${FLATPAK_DEST}/lib/python3.13/site-packages'
+                        )
+                        print(f"Patched pygments build-command:")
+                        print(f"  {cmd}")
+                    new_commands.append(cmd)
+                
+                module['build-commands'] = new_commands
+                patched = True
+                break
+        
+        if not patched:
+            print("Warning: Could not find 'python3-pygments' module in JSON")
+            print("Available modules:")
+            for module in data.get('modules', []):
+                print(f"  - {module.get('name')}")
+            return False
+        
+        # Write back modified JSON
+        with open(json_file, 'w') as f:
+            json.dump(data, f, indent=2)
+        
+        print(f"✓ Patched {json_file}")
+        return True
+    
+    except FileNotFoundError:
+        print(f"Error: File not found: {json_file}")
+        return False
+    except json.JSONDecodeError as e:
+        print(f"Error parsing JSON: {e}")
+        return False
+    except Exception as e:
+        print(f"Error patching JSON: {e}")
+        return False
 
 def main():
     """Main entry point."""
@@ -229,6 +290,12 @@ def main():
     print("\nPatching generated JSON...")
     if not patch_lxml_build_command(output_json):
         print("Warning: Could not patch lxml build command (non-fatal)")
+        # Don't exit on this - it's a "nice to have" patch
+    
+    # Step 5: Patch pygments build command
+    print("\nPatching generated JSON...")
+    if not patch_pygments_build_command(output_json):
+        print("Warning: Could not patch pygments build command (non-fatal)")
         # Don't exit on this - it's a "nice to have" patch
     
     print(f"\n✓ Done! Generated and patched {output_json}")

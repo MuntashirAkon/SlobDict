@@ -267,42 +267,14 @@ class SlobDictSearchProvider:
             if content_type.startswith("text/"):
                 content = content.decode('utf-8') if isinstance(content, bytes) else content
                 if content_type.startswith("text/html"):
-                    content = self._html_to_text(content, key)
+                    from .utils.utils import html_to_text
+                    content = self._remove_entry_name(html_to_text(content), key)
                 return content
         except Exception as e:
             print(f"SearchProvider error getting definition: {e}")
 
         # Fallback if lookup fails
         return _("View definition of %s") % key
-
-    def _html_to_text(self, html_content: str, key: str = None) -> str:
-        """
-        Extract clean plain text from HTML dictionary content.
-        
-        Removes tags, normalizes whitespace, preserves readability.
-        """
-        try:
-            from bs4 import BeautifulSoup
-            soup = BeautifulSoup(html_content, 'html.parser')
-            
-            # Remove unwanted elements (scripts, styles, navigation)
-            for element in soup(["script", "style", "nav", "footer", "header"]):
-                element.decompose()
-            
-            # Get all text content
-            text = soup.get_text(separator=' ', strip=True)
-            
-            # Clean up excessive whitespace
-            lines = (line.strip() for line in text.splitlines())
-            chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-            text = ' '.join(chunk for chunk in chunks if chunk).strip()
-            
-            return self._remove_entry_name(text, key)
-        except Exception as e:
-            print(f"HTML parsing error: {e}")
-            # Fallback: remove tags with regex
-            import re
-            return re.sub(r'<[^>]+>', '', html_content).strip()
     
     def _remove_entry_name(self, text, word):
         """

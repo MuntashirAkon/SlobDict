@@ -117,3 +117,46 @@ def get_theme_colors():
     }
     
     return colors
+
+def html_to_text(html_content: str) -> str:
+    """
+    Extract clean plain text from HTML.
+    
+    Removes tags, normalizes whitespace, preserves readability.
+    """
+    try:
+        from bs4 import BeautifulSoup
+        soup = BeautifulSoup(html_content, 'html.parser')
+        
+        # Remove unwanted elements (scripts, styles, navigation)
+        for element in soup(["script", "style", "nav", "footer", "header"]):
+            element.decompose()
+        
+        # Get all text content
+        text = soup.get_text(separator=' ', strip=True)
+        
+        # Clean up excessive whitespace
+        lines = (line.strip() for line in text.splitlines())
+        chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
+        text = '\n'.join(chunk for chunk in chunks if chunk).strip()
+        
+        return text
+    except Exception as e:
+        print(f"HTML parsing error: {e}")
+        # Fallback: remove tags with regex
+        import re
+        return re.sub(r'<[^>]+>', '', html_content).strip()
+
+def html_to_md(html_content: str) -> str:
+    """
+    Convert HTML to markdown
+    """
+    import html2text
+
+    h = html2text.HTML2Text()
+    h.ignore_links = False
+    h.ignore_images = True  # Terminals can't show images
+    h.body_width = 0       # Don't wrap lines; let the terminal handle it
+    
+    # Convert HTML to Markdown
+    return h.handle(html_content)

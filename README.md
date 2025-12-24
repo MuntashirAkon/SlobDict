@@ -8,7 +8,9 @@ Slob Dictionary is an application with a polished GTK 4 interface for exploring 
 
 - Fast and simultaneous lookup across multiple dictionary files
 - Persistent lookup history to revisit entries effortlessly
-- Lookup directly from GNOME Activities or URI (see below)
+- Lookup directly from GNOME Activities (see below)
+- Lookup using URI (see below)
+- Lookup from CLI (see below)
 - Bookmarks for saving favorite definitions and terms
 - Native light/dark mode following your GNOME desktop theme
 
@@ -26,6 +28,12 @@ The application currently supports the following URIs:
 - `slobdict://search/{search_term}`: Look for the given `{search_term}` (e.g., `slobdict://search/hello`)
 - `slobdict://lookup/{term}`: Lookup the given `{term}` and also open the definition of the first matching result (e.g., `slobdict://lookup/hello`)
 - `slobdict://lookup/{search_term}/{term}`: Lookup the given `{search_term}` and also open the definition of the first matching result of `{term}` (e.g., `slobdict://lookup/hell/hello`)
+
+## Terminal/CLI Support
+
+Run `slobdict` or `flatpak run dev.muntashir.SlobDictGTK -h` for help.
+
+> Slob Dictionary attempts to render formatted HTML/Markdown in the console, but it is not guaranteed to match the actual formatted HTML rendered by a web browser due to inherent limitations.
 
 ## Permissions Used
 

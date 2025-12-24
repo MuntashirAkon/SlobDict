@@ -14,3 +14,6 @@ pymorphy3
 python-romkan-ng
 xxhash
 pyglossary
+pygments
+rich
+html2text

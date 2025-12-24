@@ -6,7 +6,9 @@ gi.require_version("Adw", "1")
 gi.require_version("Gio", "2.0")
 
 import os
+import sys
 from gi.repository import Gtk, Adw, Gio, GLib
+from typing import List, Optional
 from .ui.main_window import MainWindow
 from .constants import app_id
 from .search_provider import SlobDictSearchProvider
@@ -18,7 +20,8 @@ class SlobDictApplication(Adw.Application):
     def __init__(self):
         super().__init__(
             application_id=app_id,
-            flags=Gio.ApplicationFlags.HANDLES_OPEN
+            flags=Gio.ApplicationFlags.HANDLES_OPEN |
+                Gio.ApplicationFlags.HANDLES_COMMAND_LINE
         )
 
         from .backend.settings_manager import SettingsManager
@@ -87,6 +90,42 @@ class SlobDictApplication(Adw.Application):
         if uri_list:
             # Use idle_add to ensure window is fully created
             GLib.idle_add(self._process_uris, uri_list, priority=GLib.PRIORITY_DEFAULT_IDLE)
+
+    def do_command_line(self, command_line):
+        """
+        Handle command-line arguments.
+        
+        Usage:
+        slobdict search <search_term> [--cli-only] [--dictionary dict1,dict2]
+        slobdict lookup <term> [--cli-only] [--dictionary dict1,dict2] [--search search_text]
+        """
+        args = command_line.get_arguments()
+        
+        # If no arguments provided, just activate GUI normally
+        if len(args) <= 1:
+            self.activate()
+            return 0
+
+        try:
+            # Parse arguments
+            namespace = self._parse_cli_args(args[1:])
+            
+            if namespace.cli_only:
+                # CLI mode - don't activate GUI
+                result = self._handle_cli_mode(namespace)
+                return result
+            else:
+                # GUI mode - activate and process
+                self.activate()
+                GLib.idle_add(self._handle_gui_mode, namespace)
+                return 0
+                
+        except SystemExit:
+            # argparse calls sys.exit() on error
+            return 1
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            return 1
 
     def do_dbus_register(self, connection, object_path):
         """
@@ -311,6 +350,81 @@ class SlobDictApplication(Adw.Application):
             traceback.print_exc()
         return False
 
+    def _parse_cli_args(self, args: List[str]):
+        """Parse command-line arguments."""
+        import argparse
+
+        parser = argparse.ArgumentParser(prog='slobdict', description='Slob Dictionary')
+        subparsers = parser.add_subparsers(dest='action', required=True)
+        
+        # search action
+        search_parser = subparsers.add_parser('search', help=_('Look for terms'))
+        search_parser.add_argument('search_term', help=_('Term to look for'))
+        search_parser.add_argument('--cli-only', '-k', action='store_true', help=_('Print results to console only'))
+        search_parser.add_argument('--dictionary', '-d', type=str, help=_('Comma-separated list of dictionaries'))
+        
+        # lookup action
+        lookup_parser = subparsers.add_parser('lookup', help=_('Lookup a term'))
+        lookup_parser.add_argument('term', help=_('Term to lookup'))
+        lookup_parser.add_argument('--cli-only', '-k', action='store_true', help=_('Print definition to console only'))
+        lookup_parser.add_argument('--dictionary', '-d', type=str, help=_('Comma-separated list of dictionaries'))
+        lookup_parser.add_argument('--search', '-s', type=str, help=_('Search text to display in GUI'))
+    
+        namespace = parser.parse_args(args)
+        return namespace
+
+    def _handle_cli_mode(self, namespace):
+        """Handle CLI-only mode (no GUI)."""
+        try:
+            dict_filter = None
+            if hasattr(namespace, 'dictionary') and namespace.dictionary:
+                dict_filter = set(d.strip() for d in namespace.dictionary.split(','))
+            
+            if namespace.action == 'search':
+                return self._cli_search(namespace.search_term, dict_filter)
+            elif namespace.action == 'lookup':
+                return self._cli_lookup(namespace.term, dict_filter)
+            
+            return 1
+        except Exception as e:
+            print(f"Error: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return 1
+
+    def _handle_gui_mode(self, namespace):
+        """Handle GUI mode - activate window and process arguments."""
+        try:
+            window: MainWindow = self.get_active_window()
+            if not window:
+                self.activate()
+                window: MainWindow = self.get_active_window()
+            if not window:
+                print("Error: Failed to create window")
+                return False
+            
+            window.present()
+            
+            if namespace.action == 'search':
+                window.perform_lookup(search_term)
+                print(f"GUI: Search for '{namespace.search_term}'")
+                return False
+            elif namespace.action == 'lookup':
+                is_search_term_different = hasattr(namespace, 'search') and namespace.search
+                search_term = namespace.search if is_search_term_different else namespace.term
+                if is_search_term_different:
+                    window.perform_lookup(search_term, selected_entry= { 'title': namespace.term })
+                else:
+                    window.perform_lookup(search_term, select_first=True)
+                print(f"GUI: Lookup '{namespace.term}'")
+                return False
+            return False
+        except Exception as e:
+            print(f"Error in GUI mode: {e}")
+            import traceback
+            traceback.print_exc()
+            return False
+
     def _perform_search(self, search_term):
         """Perform regular search."""
         window: MainWindow = self.get_active_window()
@@ -340,3 +454,97 @@ class SlobDictApplication(Adw.Application):
         
         if window:
             window.perform_lookup(search_term, selected_entry={ 'title': word })
+
+    def _cli_search(self, search_term: str, dict_filter: Optional[set] = None):
+        """CLI search - print matching terms. Format: {key} {dictionary_name}"""
+        try:
+            matches = self.slob_client.search(search_term)
+            
+            if not matches:
+                print(_("No matches found for '%s'") % search_term, file=sys.stderr)
+                return 1
+            
+            found_count = 0
+            for match in matches:
+                try:
+                    word = match['title']
+                    dict_name = match['dictionary']
+                    if dict_filter and dict_name not in dict_filter:
+                        continue
+                    
+                    line = f"\033[1m{word}\033[0m \033[4min\033[0m \033[3m{dict_name}\033[0m"
+                    print(line)
+                    found_count += 1
+                except Exception as e:
+                    print(f"Error processing match: {e}", file=sys.stderr)
+            return 0 if found_count > 0 else 1
+        except Exception as e:
+            print(f"Search error: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return 1
+    
+    def _cli_lookup(self, term: str, dict_filter: Optional[set] = None):
+        """CLI lookup - print definitions."""
+        try:
+            definitions = self._get_definitions(term, dict_filter)
+            
+            if not definitions:
+                print(_("No definition found for '%s'") % term, file=sys.stderr)
+                return 1
+            
+            from rich.console import Console
+            from rich.markdown import Markdown
+            
+            for dict_name, definition in definitions:
+                title = "\033[1;4m" + (_("From %s:") % dict_name) + "\033[0m"
+                print(title)
+                console = Console()
+                console.print(Markdown(definition))
+                print()
+            
+            return 0
+        except Exception as e:
+            print(f"Lookup error: {e}", file=sys.stderr)
+            import traceback
+            traceback.print_exc()
+            return 1
+
+    def _get_definitions(self, term: str, dict_filter: Optional[set] = None):
+        """Get definitions from slob_client for a term."""
+        definitions = []
+        try:
+            matches = self.slob_client.search(term)
+            for match in matches:
+                if match['title'] != term:
+                    continue
+                
+                dict_name = match['dictionary']
+                if dict_filter and dict_name not in dict_filter:
+                    continue
+
+                entry = self.slob_client.get_entry(match['title'], int(match['id']), match['source'])
+
+                content = entry['content']
+                content_type = entry['content_type']
+
+                if content_type.startswith('text/html'):
+                    # Convert HTML to plain text
+                    from .utils.utils import html_to_md
+                    content = content.decode('utf-8') if isinstance(content, bytes) else content
+                    text = html_to_md(content)
+                    definitions.append((dict_name, text))
+                elif content_type.startswith('text/'):
+                    # Plain text content
+                    definitions.append((dict_name, content))
+                elif content_type.startswith('image/'):
+                    # For images, show metadata/placeholder
+                    image_info = f"[Image: {content_type}]"
+                    definitions.append((dict_name, image_info))
+                else:
+                    # Unsupported content type
+                    definitions.append((dict_name, f"[{content_type}]"))
+        except Exception as e:
+            print(f"Error getting definitions: {e}", file=sys.stderr)
+        
+        return definitions

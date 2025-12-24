@@ -2,8 +2,11 @@
 .flatpak-builder/
 .vscode/
 __pycache__
+SlobDictGTK.AppDir/
 builddir/
 build/
 repo/
 slobdict/constants.py
 SlobDictGTK*.flatpak
+linuxdeploy-*
+flatpak-pip-generator.py
