@@ -2,6 +2,7 @@
 
 from gi.repository import Adw, Gtk, Gdk
 from pathlib import Path
+from typing import Callable, Optional
 import os
 from ..constants import app_id
 
@@ -74,8 +75,6 @@ def get_init_html(force_dark: bool) -> str:
         print(f"intro.html not found at {html_path}")
         return f"<html><body><style>:root {{ {css_vars} }}</style></body></html>"
 
-from gi.repository import Gtk
-
 def get_theme_colors():
     # Get realized style context
     temp = Gtk.Window()
@@ -138,7 +137,7 @@ def html_to_text(html_content: str) -> str:
         # Clean up excessive whitespace
         lines = (line.strip() for line in text.splitlines())
         chunks = (phrase.strip() for line in lines for phrase in line.split("  "))
-        text = '\n'.join(chunk for chunk in chunks if chunk).strip()
+        text = ' '.join(chunk for chunk in chunks if chunk).strip()
         
         return text
     except Exception as e:
@@ -147,16 +146,119 @@ def html_to_text(html_content: str) -> str:
         import re
         return re.sub(r'<[^>]+>', '', html_content).strip()
 
-def html_to_md(html_content: str) -> str:
+def inline_stylesheets(
+    html: str,
+    *,
+    extra_css: str = None,
+    on_css: Optional[Callable[[str], Optional[str]]] = None,
+) -> str:
+    """
+    Replace <link rel="stylesheet" href="..."> tags with <style> blocks.
+    Then inline them to their corresponding tags.
+
+    Parameters
+    ----------
+    html : str
+        Original HTML content.
+    on_css : callable, optional
+        Callback invoked for each external stylesheet href.
+        Signature: on_css(href: str) -> Optional[str]
+        - href: the href attribute value from the <link> tag
+        - Returns: CSS text to embed, or None to skip this stylesheet
+        If not provided, all external CSS is ignored.
+
+    Returns
+    -------
+    str
+        Modified HTML with embedded <style> blocks instead of <link>.
+    """
+    from bs4 import BeautifulSoup
+    from premailer import transform
+
+    soup = BeautifulSoup(html, "lxml")
+
+    for link in list(soup.find_all("link", rel=lambda v: v and "stylesheet" in v)):
+        href = link.get("href")
+        if not href:
+            continue
+
+        # Invoke callback
+        if on_css is None:
+            link.decompose()
+            continue
+
+        css_text = on_css(href)
+        if css_text is None:
+            link.decompose()
+            continue
+
+        # Embed the CSS
+        style_tag = soup.new_tag("style", type="text/css")
+        style_tag.string = css_text
+
+        link.insert_before(style_tag)
+        link.decompose()
+
+    return transform(str(soup), remove_classes=True, allow_network=False)
+
+def transform_css_to_semantic_html(html: str) -> str:
+    """
+    Transform elements based on their CSS property.
+    """
+    from bs4 import BeautifulSoup
+    import cssutils
+    import logging
+
+    cssutils.log.setLevel(logging.CRITICAL)
+
+    soup = BeautifulSoup(html, "lxml")
+    
+    # Structural tags that should not be turned into div/span
+    protected_tags = {'table', 'tr', 'td', 'th', 'ul', 'ol', 'li', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6'}
+
+    for elem in list(soup.find_all(True)):
+        style_str = elem.get("style", "")
+        if not style_str:
+            continue
+            
+        style = cssutils.parseStyle(style_str)
+        
+        # 1. Handle Visibility (Highest Priority)
+        display = style.getPropertyValue("display").lower()
+        if display == "none":
+            elem.decompose()
+            continue
+
+        # 2. Handle Semantic Styles (Apply to ALL tags, including protected ones)
+        # Handle Bold
+        weight = style.getPropertyValue("font-weight").lower()
+        if weight in ('bold', 'bolder') or (weight.isdigit() and int(weight) >= 600):
+            elem.wrap(soup.new_tag("strong"))
+
+        # Handle Italics
+        font_style = style.getPropertyValue("font-style").lower()
+        if font_style in ('italic', 'oblique'):
+            elem.wrap(soup.new_tag("em"))
+
+        # Handle Text Decoration (underline, line-through)
+        text_decoration = style.getPropertyValue("text-decoration").lower()
+        if "underline" in text_decoration:
+            elem.wrap(soup.new_tag("u"))
+        if "line-through" in text_decoration:
+            elem.wrap(soup.new_tag("s"))
+
+        # 3. Handle Display-based Renaming (Skip if tag is protected)
+        if elem.name not in protected_tags:
+            if display in ("block", "flex", "grid", "inline-block"):
+                elem.name = "div"
+            elif display == "inline":
+                elem.name = "span"
+
+    return str(soup)
+
+def html_to_markdown(html_str: str) -> str:
     """
     Convert HTML to markdown
     """
-    import html2text
-
-    h = html2text.HTML2Text()
-    h.ignore_links = False
-    h.ignore_images = True  # Terminals can't show images
-    h.body_width = 0       # Don't wrap lines; let the terminal handle it
-    
-    # Convert HTML to Markdown
-    return h.handle(html_content)
+    from markdownify import markdownify as md
+    return md(transform_css_to_semantic_html(html_str))

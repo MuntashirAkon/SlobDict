@@ -16,4 +16,6 @@ xxhash
 pyglossary
 pygments
 rich
-html2text
+premailer
+cssutils
+markdownify

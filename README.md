@@ -31,7 +31,7 @@ The application currently supports the following URIs:
 
 ## Terminal/CLI Support
 
-Run `slobdict` or `flatpak run dev.muntashir.SlobDictGTK -h` for help.
+Run `slobdict -h` or `flatpak run dev.muntashir.SlobDictGTK -h` for help.
 
 > Slob Dictionary attempts to render formatted HTML/Markdown in the console, but it is not guaranteed to match the actual formatted HTML rendered by a web browser due to inherent limitations.
 

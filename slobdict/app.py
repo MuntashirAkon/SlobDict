@@ -530,9 +530,12 @@ class SlobDictApplication(Adw.Application):
 
                 if content_type.startswith('text/html'):
                     # Convert HTML to plain text
-                    from .utils.utils import html_to_md
+                    from .utils.utils import html_to_markdown, inline_stylesheets
+
+                    self.last_source = match['source']
                     content = content.decode('utf-8') if isinstance(content, bytes) else content
-                    text = html_to_md(content)
+                    content = inline_stylesheets(content, on_css=self.external_css_handler)
+                    text = html_to_markdown(content)
                     definitions.append((dict_name, text))
                 elif content_type.startswith('text/'):
                     # Plain text content
@@ -548,3 +551,11 @@ class SlobDictApplication(Adw.Application):
             print(f"Error getting definitions: {e}", file=sys.stderr)
         
         return definitions
+
+    def external_css_handler(self, href: str) -> Optional[str]:
+        if not hasattr(self, 'last_source'):
+            return None
+
+        entry = self.slob_client.get_entry(href, None, self.last_source)
+        content = entry['content']
+        return content.decode('utf-8') if isinstance(content, bytes) else content
