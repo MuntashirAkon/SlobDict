@@ -8,12 +8,24 @@ Slob Dictionary is an application with a polished GTK 4 interface for exploring 
 
 - Fast and simultaneous lookup across multiple dictionary files
 - Persistent lookup history to revisit entries effortlessly
+- Lookup directly from GNOME Activities or URI (see below)
 - Bookmarks for saving favorite definitions and terms
 - Native light/dark mode following your GNOME desktop theme
 
 ## Supported Dictionary Formats
 
 Aard 2 (.slob), Almaany.com (SQLite3), AppleDict Binary(.dictionary, .data), AyanDict SQLite, Babylon (.BGL), cc-kedict, Crawler Directory(.crawler), CSV (.csv), DictionaryForMIDs(.mids), Dict.cc (SQLite3), Dict.cc (SQLite3) - Split, DICT.org file format (.index), dictunformat output file(.dictunformat), DigitalNK (SQLite3, N-Korean), ABBYY Lingvo DSL (.dsl), Kobo E-Reader Dictfile (.df), EDICT2 (CEDICT) (.u8), EDLIN(.edlin), FreeDict (.tei), Gettext Source (.po), Glossary Info (.info), JMDict (xml), JMnedict, Lingoes Source (.ldf), Makindo Medical Reference (SQLite3), Octopus MDict (.mdx), QuickDic version 6 (.quickdic), StarDict (.ifo), StarDict Textual File (.xml), Tabfile (.txt, .dic), Test Format File(.test), Wiktextract (.jsonl), WordNet, Wordset.org JSON directory, XDXF (.xdxf), XDXF with CSS and JS, XDXF Lax (.xdxf), Yomichan (.zip), Zim (.zim, for Kiwix).
+
+## GNOME Activities Support
+
+To lookup dictionaries directly from GNOME Activities, you need to enable the feature in Settings > Search > Slob Dictionary.
+
+## URI Support
+
+The application currently supports the following URIs:
+- `slobdict://lookup/{search_term}`: Lookup the given `{search_term}` (e.g., `slobdict://lookup/hello`)
+- `slobdict://go/{term}`: Lookup the given `{term}` and also open the definition of the first matching result (e.g., `slobdict://go/hello`)
+- `slobdict://go/{search_term}/{term}`: Lookup the given `{search_term}` and also open the definition of the first matching result of `{term}` (e.g., `slobdict://go/hell/hello`)
 
 ## Permissions Used
 

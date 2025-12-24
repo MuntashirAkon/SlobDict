@@ -15,6 +15,7 @@ finish-args:
   # For D-Bus
   - --own-name=dev.muntashir.SlobDictGTK
   - --own-name=dev.muntashir.SlobDictGTK.*
+  - --talk-name=org.freedesktop.DBus
 build-options:
   build-args:
     - --share=network

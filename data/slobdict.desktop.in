@@ -1,6 +1,6 @@
 [Desktop Entry]
 Name=@APP_LABEL@
-Exec=@APP_NAME@ %U
+Exec=@APP_NAME@ %u
 Icon=@APP_ID@
 Terminal=false
 Type=Application
@@ -8,3 +8,4 @@ Categories=Dictionary;Education;
 StartupNotify=true
 Keywords=word;synonym;definition;spelling;
 DBusActivatable=true
+MimeType=x-scheme-handler/@APP_NAME@;

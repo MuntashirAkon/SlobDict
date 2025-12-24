@@ -18,7 +18,7 @@ class SlobDictApplication(Adw.Application):
     def __init__(self):
         super().__init__(
             application_id=app_id,
-            flags=Gio.ApplicationFlags.DEFAULT_FLAGS
+            flags=Gio.ApplicationFlags.HANDLES_OPEN
         )
 
         from .backend.settings_manager import SettingsManager
@@ -59,6 +59,34 @@ class SlobDictApplication(Adw.Application):
         except Exception as e:
             print(f"Failed to initialize slob_client: {e}")
             return None
+    
+    def do_startup(self):
+        Adw.Application.do_startup(self)
+
+    def do_open(self, files, n_files, hint):
+        """
+        Handle custom URI: slobdict://
+        """
+        window = self.get_active_window()
+        if not window:
+            self.activate()
+            window = self.get_active_window()
+
+        if window:
+            window.present()
+        
+        # Convert Gio.File objects to URIs
+        uri_list = []
+        for file in files:
+            uri = file.get_uri()
+            print(f"do_open: File URI: {uri}")
+            if uri.startswith("slobdict://"):
+                uri_list.append(uri)
+        
+        # Process URIs after window is ready
+        if uri_list:
+            # Use idle_add to ensure window is fully created
+            GLib.idle_add(self._process_uris, uri_list, priority=GLib.PRIORITY_DEFAULT_IDLE)
 
     def do_dbus_register(self, connection, object_path):
         """
@@ -210,3 +238,105 @@ class SlobDictApplication(Adw.Application):
         about.set_issue_url("https://github.com/MuntashirAkon/SlobDict/issues")
 
         about.set_visible(True)
+
+    def _process_uris(self, uri_list):
+        """
+        Process URIs after window is created and ready.
+        """
+        window = self.get_active_window()
+        if not window:
+            print("_process_uris: Window not ready yet, retrying...")
+            return True  # Retry
+        
+        print(f"_process_uris: Window ready, processing {len(uri_list)} URIs")
+        
+        for uri in uri_list:
+            self._handle_uri(uri)
+        
+        return False  # Don't retry
+
+    def _handle_uri(self, uri):
+        """
+        Handle slobdict:// URI schemes.
+        
+        Supported formats:
+        - slobdict://lookup/{search_term}
+        - slobdict://go/{word}
+        - slobdict://go/{search_term}/{word}
+        """
+        try:
+            from urllib.parse import urlparse, unquote
+            from pathlib import PurePosixPath
+            
+            parsed = urlparse(uri)
+            if parsed.scheme != 'slobdict':
+                print(f"URI: Invalid scheme {parsed.scheme}")
+                return False
+
+            action = parsed.netloc
+            if action not in ('lookup', 'go'):
+                print(f"URI: Invalid action {action}")
+                return False
+            
+            path_parts = [unquote(part) for part in PurePosixPath(parsed.path).parts]
+            if not path_parts:
+                return False
+                        
+            if action == 'lookup':
+                # slobdict://lookup/{search_term}
+                if len(path_parts) == 2:
+                    search_term = path_parts[1]
+                    GLib.idle_add(self._perform_lookup, search_term)
+                    print(f"URI: lookup '{search_term}'")
+                else:
+                    print("URI: Invalid lookup format, expects exactly 1 argument: search_term")
+            elif action == 'go':
+                # slobdict://go/{word} OR slobdict://go/{search_term}/{word}
+                if len(path_parts) == 2:
+                    # slobdict://go/{word}
+                    word = path_parts[1]
+                    GLib.idle_add(self._perform_go, word)
+                    print(f"URI: go '{word}'")
+                elif len(path_parts) >= 3:
+                    # slobdict://go/{search_term}/{word}
+                    search_term = '/'.join(path_parts[1:-1])  # Everything except last
+                    word = path_parts[-1]  # Last segment is the word
+                    GLib.idle_add(self._perform_go_with_search, search_term, word)
+                    print(f"URI: go search='{search_term}' word='{word}'")
+                else:
+                    print("URI: Invalid lookup format, expects 1 or 2 arguments: word and search_term")
+        except Exception as e:
+            print(f"URI Handler error: {e}")
+            import traceback
+            traceback.print_exc()
+        return False
+
+    def _perform_lookup(self, search_term):
+        """Perform regular search."""
+        window: MainWindow = self.get_active_window()
+        if not window:
+            self.activate()
+            window: MainWindow = self.get_active_window()
+        
+        if window:
+            window.perform_lookup(search_term)
+
+    def _perform_go(self, word):
+        """Lookup and open first matched word."""
+        window: MainWindow = self.get_active_window()
+        if not window:
+            self.activate()
+            window: MainWindow = self.get_active_window()
+        
+        if window:
+            window.perform_lookup(word, select_first=True)
+
+    def _perform_go_with_search(self, search_term, word):
+        """Search for term, then select specific word."""
+        window: MainWindow = self.get_active_window()
+        if not window:
+            self.activate()
+            window: MainWindow = self.get_active_window()
+        
+        if window:
+            window.perform_lookup(search_term, selected_entry={ 'title': word })

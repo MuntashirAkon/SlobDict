@@ -168,24 +168,31 @@ class SlobDictSearchProvider:
         """
         self.app.hold()
         try:
+            from .ui.main_window import MainWindow
+
             source, key_id, key = result.split(':', 2)
             search_text = ' '.join(terms)
 
             # Get or create window
             print(f"SearchProvider: Activating result for '{key}'")
 
-            window = self.app.get_active_window()
+            window: MainWindow = self.app.get_active_window()
             if not window:
                 # No window exists, we need to create one
                 # This will be done in on_activate
                 print("SearchProvider: No window, creating one...")
                 self.app.activate()
-                window = self.app.get_active_window()
+                window: MainWindow = self.app.get_active_window()
 
             if window:
                 window.present()
-                window.perform_lookup_and_go(search_text, key, int(key_id), source)
-                print(f"SearchProvider: Called perform_lookup_and_go with key '{key}'")
+                entry = {
+                    'id': key_id,
+                    'title': key,
+                    'source': source,
+                }
+                window.perform_lookup(search_text, selected_entry=entry)
+                print(f"SearchProvider: Called perform_lookup with key '{key}'")
             else:
                 print("SearchProvider: Failed to create/get window")
         except Exception as e:
@@ -201,11 +208,12 @@ class SlobDictSearchProvider:
         """
         self.app.hold()
         try:
-            # Get or create window
-            window = self.app.get_active_window()
+            from .ui.main_window import MainWindow
+
+            window: MainWindow = self.app.get_active_window()
             if not window:
                 self.app.activate()
-                window = self.app.get_active_window()
+                window: MainWindow = self.app.get_active_window()
 
             if window:
                 window.present()

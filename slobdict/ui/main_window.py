@@ -35,7 +35,7 @@ class MainWindow(Adw.ApplicationWindow):
     nav_buttons_box = Gtk.Template.Child()
     search_entry = Gtk.Template.Child()
     history_search_entry = Gtk.Template.Child()
-    results_list = Gtk.Template.Child()
+    results_list: Gtk.ListBox = Gtk.Template.Child()
     webview_container = Gtk.Template.Child()
 
     def __init__(self, application, settings_manager, slob_client):
@@ -69,6 +69,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.request_counter = 0
         self.current_search_request_id = None
         self.scheduled_selected_lookup_item = None
+        self.scheduled_select_first_lookup_item = False
 
 
         # Initialize DB
@@ -477,12 +478,20 @@ class MainWindow(Adw.ApplicationWindow):
             
             self.results_list.append(row)
 
-        if self.scheduled_selected_lookup_item and request_id == self.current_search_request_id:
-            print(f"Opening {self.scheduled_selected_lookup_item}")
-            source = self.scheduled_selected_lookup_item['source']
-            key_id = self.scheduled_selected_lookup_item['id']
-            self.scheduled_selected_lookup_item = None
-            self._activate_row_by_ids(source, key_id)
+        # Select an item if requested
+        if request_id == self.current_search_request_id:
+            if self.scheduled_select_first_lookup_item:
+                self.scheduled_select_first_lookup_item = False
+                first_child = self.results_list.get_first_child()
+                if first_child:
+                    self.results_list.select_row(first_child)
+            elif self.scheduled_selected_lookup_item:
+                print(f"Opening {self.scheduled_selected_lookup_item}")
+                source = self.scheduled_selected_lookup_item.get('source')
+                key_id = self.scheduled_selected_lookup_item.get('id')
+                key = self.scheduled_selected_lookup_item.get('title')
+                self.scheduled_selected_lookup_item = None
+                self._activate_row_by_ids(key, key_id, source)
 
     def _populate_bookmarks(self, filter_query: str = ""):
         """Populate bookmarks list with optional filtering."""
@@ -748,60 +757,66 @@ class MainWindow(Adw.ApplicationWindow):
         self._populate_history()
         self.on_dictionary_updated()
 
-    def perform_lookup(self, search: str):
+    def perform_lookup(self, search: str, selected_entry: dict = None, select_first: bool = False):
         self.current_view = "lookup"
         self._update_sidebar_title()
         self.search_entry.set_visible(True)
         self.history_search_entry.set_visible(False)
+        self.scheduled_selected_lookup_item = selected_entry
+        self.scheduled_select_first_lookup_item = select_first
         self.search_entry.set_text(search)
         self.search_entry.grab_focus()
 
-    def perform_lookup_and_go(self, search: str, key: str, key_id: int, source: str):
-        self.current_view = "lookup"
-        self._update_sidebar_title()
-        self.search_entry.set_visible(True)
-        self.history_search_entry.set_visible(False)
-        self.scheduled_selected_lookup_item = {
-            'id': key_id,
-            'source': source
-        }
-        self.search_entry.set_text(search)
-        self.search_entry.grab_focus()
-
-    def _activate_row_by_ids(self, source: str, key_id: int) -> Gtk.ListBoxRow:
+    def _activate_row_by_ids(self, key: Optional[str], key_id: Optional[str], source: Optional[str]) -> Gtk.ListBoxRow:
         """
-        Find and activate Gtk.ListBoxRow by source and key_id.
+        Find and activate Gtk.ListBoxRow by key or (source and key_id).
         
         Args:
-            source: Dictionary identifier
+            key: Dictionary entry
             key_id: Key identifier within dictionary
+            source: Dictionary identifier
         """
         if not hasattr(self, 'results_list'):
             return None
         
+        by_id = key_id and source
+        by_key = key and True
+        
         # Search through row_to_result mapping
         target_row = None
-        key_id = str(key_id)
-        for row, result_data in self.row_to_result.items():
-            if result_data['source'] == source and result_data['id'] == key_id:
-                target_row = row
-                break
+        if by_id:
+            for row, result_data in self.row_to_result.items():
+                if result_data['source'] == source and result_data['id'] == key_id:
+                    target_row = row
+                    break
+        elif by_key:
+            for row, result_data in self.row_to_result.items():
+                if result_data['title'] == key:
+                    target_row = row
+                    break
         
         if target_row:
             # Select the row
             self.results_list.select_row(target_row)
-            # Scroll to row using adjustment
-            adjustment = self.results_list.get_adjustment()
-            if adjustment:
-                # Calculate scroll position to center the row
-                allocation = target_row.get_allocation()
-                page_size = adjustment.get_page_size()
-                row_center = allocation.y + allocation.height / 2
-                target_scroll = max(0, row_center - page_size / 2)
-                
-                # Animate scroll to position
-                adjustment.set_value(target_scroll)
-                print(f"Activated & scrolled to row: {source}:{key_id}")
+            GLib.idle_add(self._scroll_to_row, target_row, priority=GLib.PRIORITY_DEFAULT_IDLE)
+            print(f"Activated: {source}:{key_id}:{key}")
             return target_row
         
         return None
+
+    def _scroll_to_row(self, target_row: Gtk.ListBoxRow):
+        # Get the vertical adjustment from the ListBox or its parent ScrolledWindow
+        adj = self.results_list.get_adjustment()
+        # Get the row's position relative to the ListBox
+        coordinates = target_row.translate_coordinates(self.results_list, 0, 0)
+        if coordinates:
+            # Set the scroll value (e.g., center the row)
+            x, y = coordinates
+            row_height = target_row.get_allocated_height()
+            page_size = adj.get_page_size()
+            new_value = y - (page_size / 2) + (row_height / 2)
+            if row_height == 0 or page_size == 0 or new_value <= 0:
+                target_row.grab_focus()
+            else: adj.set_value(new_value)
+        else: target_row.grab_focus()
+        return False
