@@ -13,30 +13,51 @@ def is_dark_mode() -> bool:
     style_manager = Adw.StyleManager.get_default()
     return bool(style_manager.get_dark())
 
-def invert_color(color_str: str, hue_rotate_deg: int = 180) -> str:
+def _apply_inversion_hue_rotate180deg(rgba: Gdk.RGBA) -> Gdk.RGBA:
+    """
+    Replicates CSS `filter: invert(1) hue-rotate(180deg)` exactly (to match dark-mode.css).
+    Uses the W3C spec linear matrix for hue-rotation.
+    """
+    # CSS Invert(1)
+    # Flips the channels: 0.0 -> 1.0, 1.0 -> 0.0
+    r = 1.0 - rgba.red
+    g = 1.0 - rgba.green
+    b = 1.0 - rgba.blue
+
+    # CSS Hue-Rotate(180deg) Matrix
+    # These constants are derived from the W3C formula using:
+    # cos(180) = -1.0, sin(180) = 0.0
+    # Weights: Red=0.213, Green=0.715, Blue=0.072
+    
+    # Matrix Row 1
+    r_new = (r * -0.574) + (g *  1.430) + (b *  0.144)
+    # Matrix Row 2
+    g_new = (r *  0.426) + (g *  0.430) + (b *  0.144)
+    # Matrix Row 3
+    b_new = (r *  0.426) + (g *  1.430) + (b * -0.856)
+
+    # CSS filters clamp values to the [0, 1] range after matrix transforms
+    res = Gdk.RGBA()
+    res.red   = max(0.0, min(1.0, r_new))
+    res.green = max(0.0, min(1.0, g_new))
+    res.blue  = max(0.0, min(1.0, b_new))
+    res.alpha = rgba.alpha
+    
+    return res
+
+def get_inverted_color_for_dark_mode(color_str: str) -> str:
     """Invert a color"""
-    # Parse using GTK
     rgba = Gdk.RGBA()
     if not rgba.parse(color_str):
         rgba.parse('#000000')
     
-    r, g, b = rgba.red, rgba.green, rgba.blue
-    
-    # Invert RGB
-    r, g, b = 1 - r, 1 - g, 1 - b
-
-    # Return as hex
-    return '#{:02x}{:02x}{:02x}'.format(
-        int(r * 255),
-        int(g * 255),
-        int(b * 255)
-    )
+    return str(_apply_inversion_hue_rotate180deg(rgba).to_string())
 
 def load_dark_mode_css() -> str:
     """Load dark mode CSS file."""
     css_path = Path(__file__).parent / "dark-mode.css"
     try:
-        bg_color = invert_color(get_theme_colors()['--color-bg'])
+        bg_color = get_inverted_color_for_dark_mode(get_theme_colors()['--color-bg'])
         with open(css_path, 'r') as f:
             return str(f.read()).replace('.ROOT_CSS {}', f':root {{ --color-bg-inverted: {bg_color}; }}')
     except FileNotFoundError:
@@ -58,7 +79,7 @@ def get_init_html(force_dark: bool) -> str:
     html_path = Path(__file__).parent / "intro.html"
     theme_colors = get_theme_colors()
     if is_dark_mode() and force_dark: # Force dark => color inversion
-        css_vars = '; '.join([f"{k}: {invert_color(v)}" for k,v in theme_colors.items()])
+        css_vars = '; '.join([f"{k}: {get_inverted_color_for_dark_mode(v)}" for k,v in theme_colors.items()])
     else:
         css_vars = '; '.join([f"{k}: {v}" for k,v in theme_colors.items()])
     try:

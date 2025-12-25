@@ -85,7 +85,7 @@ class SettingsManager:
     @property
     def appearance(self) -> str:
         """Current appearance: system, light, dark"""
-        return self._get("appearance")
+        return str(self._get("appearance"))
 
     @appearance.setter
     def appearance(self, value: str) -> None:
@@ -97,7 +97,7 @@ class SettingsManager:
     @property
     def force_dark(self) -> bool:
         """Use force dark in the browser"""
-        return self._get("force_dark_mode")
+        return bool(self._get("force_dark_mode"))
 
     @force_dark.setter
     def force_dark(self, value: bool) -> None:
@@ -107,7 +107,7 @@ class SettingsManager:
     @property
     def load_remote_content(self) -> bool:
         """Load remote content in the webview (global setting)"""
-        return self._get("load_remote_content")
+        return bool(self._get("load_remote_content"))
 
     @load_remote_content.setter
     def load_remote_content(self, value: bool) -> None:
@@ -117,7 +117,7 @@ class SettingsManager:
     @property
     def enable_history(self) -> bool:
         """Whether to keep histories"""
-        return self._get("enable_history")
+        return bool(self._get("enable_history"))
 
     @enable_history.setter
     def enable_history(self, value: bool) -> None:
@@ -127,7 +127,7 @@ class SettingsManager:
     @property
     def enable_javascript(self) -> bool:
         """Enable JS in webview"""
-        return self._get("enable_javascript")
+        return bool(self._get("enable_javascript"))
 
     @enable_javascript.setter
     def enable_javascript(self, value: bool) -> None:
@@ -137,7 +137,7 @@ class SettingsManager:
     @property
     def port(self) -> int:
         """Configured port"""
-        return self._get("port")
+        return int(self._get("port"))
 
     @port.setter
     def port(self, value: int) -> None:
@@ -149,7 +149,7 @@ class SettingsManager:
     @property
     def zoom_level(self) -> float:
         """Current zoom level"""
-        return self._get("zoom_level")
+        return float(self._get("zoom_level"))
 
     @zoom_level.setter
     def zoom_level(self, value: float) -> None:
