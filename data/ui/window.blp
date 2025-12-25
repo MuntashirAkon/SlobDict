@@ -1,6 +1,39 @@
 using Gtk 4.0;
 using Adw 1;
 
+menu options_menu {
+  section {
+    item {
+      label: _("Zoom In");
+      action: "win.zoom-in";
+      accel: "<Control>plus";
+    }
+    item {
+      label: _("Zoom Out");
+      action: "win.zoom-out";
+      accel: "<Control>minus";
+    }
+    item {
+      label: _("Reset Zoom");
+      action: "win.zoom-reset";
+      accel: "<Control>0";
+    }
+  }
+  section {
+    item {
+      label: _("Load Remote Content");
+      action: "win.load-remote";
+    }
+  }
+  section {
+    item {
+      label: _("Print");
+      action: "win.print";
+      accel: "<Control>p";
+    }
+  }
+}
+
 template $MainWindow : Adw.ApplicationWindow {
   modal: false;
   title: "Slob Dictionary";
@@ -89,16 +122,34 @@ template $MainWindow : Adw.ApplicationWindow {
             icon-name: "go-next-symbolic";
             tooltip-text: _("Next");
           }
+
+          Gtk.Button find_button {
+            icon-name: "edit-find-symbolic";
+            tooltip-text: _("Find in page");
+            css-classes: ["flat"];
+            action-name: "win.find-in-page";
+          }
         }
 
         [end]
-        Gtk.Button bookmark_button {
-          icon-name: "non-starred-symbolic";
-          tooltip-text: _("Bookmark");
-          css-classes: ["flat"];
+        Gtk.Box action_buttons_box {
+          spacing: 0;
+
+          Gtk.Button bookmark_button {
+            icon-name: "non-starred-symbolic";
+            tooltip-text: _("Bookmark");
+            css-classes: ["flat"];
+          }
+
+          Gtk.MenuButton options_menu_button {
+            icon-name: "view-more-symbolic";
+            tooltip-text: _("More options");
+            css-classes: ["flat"];
+            menu-model: options_menu;
+          }
         }
 
-        title-widget: Adw.WindowTitle {
+        title-widget: Adw.WindowTitle content_title {
           title: "Slob Dictionary";
           subtitle: "";
         };
@@ -108,6 +159,34 @@ template $MainWindow : Adw.ApplicationWindow {
         orientation: vertical;
         hexpand: true;
         vexpand: true;
+
+        Gtk.Box find_bar {
+          spacing: 0;
+          orientation: horizontal;
+          css-classes: ["toolbar", "base-background", "find-bar"];
+
+          Gtk.SearchEntry find_entry {
+            placeholder-text: _("Find in page...");
+            hexpand: true;
+          }
+
+          Gtk.Button find_prev_button {
+            icon-name: "go-up-symbolic";
+            tooltip-text: _("Previous match");
+            sensitive: false;
+          }
+
+          Gtk.Button find_next_button {
+            icon-name: "go-down-symbolic";
+            tooltip-text: _("Next match");
+            sensitive: false;
+          }
+
+          Gtk.Button find_close_button {
+            icon-name: "window-close-symbolic";
+            tooltip-text: _("Close find in page toolbar");
+          }
+        }
       }
     }
   }

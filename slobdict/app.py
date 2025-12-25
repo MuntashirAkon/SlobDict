@@ -192,6 +192,12 @@ class SlobDictApplication(Adw.Application):
         self.set_accels_for_action('app.preferences', ['<primary>comma'])
         self.set_accels_for_action('app.quit', ['<primary>q'])
 
+        self.set_accels_for_action('win.zoom-in', ["<primary>plus", "<primary>equal"])
+        self.set_accels_for_action('win.zoom-out', ['<primary>minus'])
+        self.set_accels_for_action('win.zoom-reset', ['<primary>0'])
+        self.set_accels_for_action('win.find-in-page', ['<primary>f'])
+        self.set_accels_for_action('win.print', ['<primary>p'])
+
     def on_activate(self, app: Gio.Application) -> None:
         """Callback for application activation."""
         window = MainWindow(app=self, settings_manager=self.settings_manager, slob_client=self.slob_client)
@@ -199,7 +205,7 @@ class SlobDictApplication(Adw.Application):
 
     def _apply_appearance(self) -> None:
         """Apply the current appearance setting."""
-        appearance = self.settings_manager.get('appearance', 'system')
+        appearance = self.settings_manager.appearance
         
         if appearance == 'light':
             Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.FORCE_LIGHT)

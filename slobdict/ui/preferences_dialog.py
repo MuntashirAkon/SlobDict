@@ -48,7 +48,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         appearance_row.set_model(appearance_model)
         
         # Set current appearance
-        current_appearance = self.settings_manager.get('appearance', 'system')
+        current_appearance = self.settings_manager.appearance
         appearance_map = {'system': 0, 'light': 1, 'dark': 2}
         appearance_row.set_selected(appearance_map.get(current_appearance, 0))
         appearance_row.connect("notify::selected-item", self._on_appearance_changed)
@@ -58,7 +58,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         force_dark_row = Adw.SwitchRow()
         force_dark_row.set_title(_("Force Dark Mode"))
         force_dark_row.set_subtitle(_("Apply dark mode to web content"))
-        force_dark_enabled = self.settings_manager.get('force_dark_mode', True)
+        force_dark_enabled = self.settings_manager.force_dark
         force_dark_row.set_active(force_dark_enabled)
         force_dark_row.connect("notify::active", self._on_force_dark_changed)
         appearance_group.add(force_dark_row)
@@ -72,7 +72,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         remote_content_row = Adw.SwitchRow()
         remote_content_row.set_title(_("Load Remote Content"))
         remote_content_row.set_subtitle(_("Load images and resources from the internet"))
-        remote_enabled = self.settings_manager.get('load_remote_content', False)
+        remote_enabled = self.settings_manager.load_remote_content
         remote_content_row.set_active(remote_enabled)
         remote_content_row.connect("notify::active", self._on_remote_content_changed)
         content_group.add(remote_content_row)
@@ -81,7 +81,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         javascript_row = Adw.SwitchRow()
         javascript_row.set_title(_("Enable JavaScript"))
         javascript_row.set_subtitle(_("Allow scripts in web content"))
-        javascript_enabled = self.settings_manager.get('enable_javascript', True)
+        javascript_enabled = self.settings_manager.enable_javascript
         javascript_row.set_active(javascript_enabled)
         javascript_row.connect("notify::active", self._on_javascript_changed)
         content_group.add(javascript_row)
@@ -95,7 +95,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         history_row = Adw.SwitchRow()
         history_row.set_title(_("Enable History"))
         history_row.set_subtitle(_("Save and display search history"))
-        history_enabled = self.settings_manager.get('enable_history', True)
+        history_enabled = self.settings_manager.enable_history
         history_row.set_active(history_enabled)
         history_row.connect("notify::active", self._on_history_enabled_changed)
         history_group.add(history_row)
@@ -139,27 +139,27 @@ class PreferencesDialog(Adw.PreferencesWindow):
         selected = combo_row.get_selected()
         appearance_map = {0: 'system', 1: 'light', 2: 'dark'}
         appearance = appearance_map.get(selected, 'system')
-        self.settings_manager.set('appearance', appearance)
+        self.settings_manager.appearance = appearance
 
     def _on_force_dark_changed(self, switch_row, param) -> None:
         """Handle force dark mode toggle."""
         enabled = switch_row.get_active()
-        self.settings_manager.set('force_dark_mode', enabled)
+        self.settings_manager.force_dark = enabled
 
     def _on_remote_content_changed(self, switch_row, param) -> None:
         """Handle remote content toggle."""
         enabled = switch_row.get_active()
-        self.settings_manager.set('load_remote_content', enabled)
+        self.settings_manager.load_remote_content = enabled
 
     def _on_javascript_changed(self, switch_row, param) -> None:
         """Handle JavaScript toggle."""
         enabled = switch_row.get_active()
-        self.settings_manager.set('enable_javascript', enabled)
+        self.settings_manager.enable_javascript = enabled
 
     def _on_history_enabled_changed(self, switch_row, param) -> None:
         """Handle history enabled toggle."""
         enabled = switch_row.get_active()
-        self.settings_manager.set('enable_history', enabled)
+        self.settings_manager.enable_history = enabled
 
     def _on_clear_history_clicked(self, button: Gtk.Button) -> None:
         """Handle clear history button click."""

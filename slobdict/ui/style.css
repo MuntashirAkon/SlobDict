@@ -9,3 +9,8 @@
 .delete-button {
     color: #ff0000;
 }
+
+.find-bar {
+    background-color: @theme_base_color;
+    padding: 8px 12px;
+}

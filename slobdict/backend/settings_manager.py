@@ -24,7 +24,8 @@ class SettingsManager:
             'load_remote_content': False,
             'enable_history': True,
             'enable_javascript': True,
-            'port': 8013
+            'port': 8013,
+            'zoom_level': 1.0,
         }
         
         # Callbacks for settings changes
@@ -55,7 +56,7 @@ class SettingsManager:
         except IOError as e:
             print(f"Error saving settings: {e}")
 
-    def get(self, key: str, default: Any = None) -> Any:
+    def _get(self, key: str, default: Any = None) -> Any:
         """
         Get a setting value.
         
@@ -68,7 +69,7 @@ class SettingsManager:
         """
         return self.settings.get(key, default if default is not None else self.defaults.get(key))
 
-    def set(self, key: str, value: Any) -> None:
+    def _set(self, key: str, value: Any) -> None:
         """
         Set a setting value.
         
@@ -80,6 +81,80 @@ class SettingsManager:
             self.settings[key] = value
             self._save_settings()
             self._notify_callbacks(key, value)
+
+    @property
+    def appearance(self) -> str:
+        """Current appearance: system, light, dark"""
+        return self._get("appearance")
+
+    @appearance.setter
+    def appearance(self, value: str) -> None:
+        """Current appearance: system, light, dark"""
+        if value not in ("system", "light", "dark"):
+            raise ValueError("appearance must be one of (system, light, dark)")
+        self._set("appearance", value)
+
+    @property
+    def force_dark(self) -> bool:
+        """Use force dark in the browser"""
+        return self._get("force_dark_mode")
+
+    @force_dark.setter
+    def force_dark(self, value: bool) -> None:
+        """Use force dark in the browser"""
+        self._set("force_dark_mode", value)
+
+    @property
+    def load_remote_content(self) -> bool:
+        """Load remote content in the webview (global setting)"""
+        return self._get("load_remote_content")
+
+    @load_remote_content.setter
+    def load_remote_content(self, value: bool) -> None:
+        """Load remote content in the webview (global setting)"""
+        self._set("load_remote_content", value)
+
+    @property
+    def enable_history(self) -> bool:
+        """Whether to keep histories"""
+        return self._get("enable_history")
+
+    @enable_history.setter
+    def enable_history(self, value: bool) -> None:
+        """Whether to keep histories"""
+        self._set("enable_history", value)
+
+    @property
+    def enable_javascript(self) -> bool:
+        """Enable JS in webview"""
+        return self._get("enable_javascript")
+
+    @enable_javascript.setter
+    def enable_javascript(self, value: bool) -> None:
+        """Enable JS in webview"""
+        self._set("enable_javascript", value)
+
+    @property
+    def port(self) -> int:
+        """Configured port"""
+        return self._get("port")
+
+    @port.setter
+    def port(self, value: int) -> None:
+        """Configured port"""
+        if value < 1024 or value > 65535:
+            raise ValueError(f"Invalid port {value}")
+        self._set("port", value)
+
+    @property
+    def zoom_level(self) -> float:
+        """Current zoom level"""
+        return self._get("zoom_level")
+
+    @zoom_level.setter
+    def zoom_level(self, value: float) -> None:
+        """Current zoom level"""
+        self._set("zoom_level", value)
 
     def register_callback(self, key: str, callback: Callable) -> None:
         """
@@ -112,22 +187,6 @@ class SettingsManager:
                     callback(key, value)
                 except Exception as e:
                     print(f"Error in settings callback: {e}")
-
-    def clear_history(self) -> bool:
-        """
-        Clear search history.
-        
-        Returns:
-            True if successful
-        """
-        try:
-            history_file = self.config_dir / "history.json"
-            if history_file.exists():
-                history_file.unlink()
-            return True
-        except Exception as e:
-            print(f"Error clearing history: {e}")
-            return False
 
     def reset_to_defaults(self) -> None:
         """Reset all settings to defaults."""

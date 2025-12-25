@@ -61,11 +61,17 @@ class MainWindow(Adw.ApplicationWindow):
     bookmark_button: Gtk.Button = Gtk.Template.Child()
     back_button: Gtk.Button = Gtk.Template.Child()
     forward_button: Gtk.Button = Gtk.Template.Child()
+    find_button: Gtk.Button = Gtk.Template.Child()
     nav_buttons_box: Gtk.Box = Gtk.Template.Child()
     search_entry: Gtk.SearchEntry = Gtk.Template.Child()
     history_search_entry: Gtk.SearchEntry = Gtk.Template.Child()
     results_list: Gtk.ListBox = Gtk.Template.Child()
     webview_container: Gtk.Box = Gtk.Template.Child()
+    find_bar: Gtk.Box = Gtk.Template.Child()
+    find_entry: Gtk.SearchEntry = Gtk.Template.Child()
+    find_prev_button: Gtk.Button = Gtk.Template.Child()
+    find_next_button: Gtk.Button = Gtk.Template.Child()
+    find_close_button: Gtk.Button = Gtk.Template.Child()
 
     def __init__(self, app: Gio.Application, settings_manager: SettingsManager, slob_client: SlobClient) -> None:
         super().__init__(application=app)
@@ -91,6 +97,9 @@ class MainWindow(Adw.ApplicationWindow):
         self.current_history_index = -1
         self.current_entry: Optional[DictEntry] = None  # Track current entry being displayed
         self.current_style: Optional[str] = None  # Stylesheet tracking
+        self.zoom_level = self.settings_manager.zoom_level
+        self.load_remote = self.settings_manager.load_remote_content
+        self.remote_reload_pending: bool = False    # Tracks if reload is in progress
 
         # Track pending tasks for cancellation
         self.pending_search_task: Optional[Future] = None
@@ -105,7 +114,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.history_db = HistoryDB()
 
         # Initialize HTTP server
-        self.http_server = HTTPServer_(self.slob_client, port=settings_manager.get('port', 8013))
+        self.http_server = HTTPServer_(self.slob_client, port=settings_manager.port)
         self.http_server.start()
         # Store the actual port
         self.http_port: Optional[int] = self.http_server.get_port()
@@ -119,6 +128,7 @@ class MainWindow(Adw.ApplicationWindow):
         
         # Setup menu
         self._setup_menu()
+        self._setup_actions()
 
         self.connect("show", self.on_window_shown)
 
@@ -142,10 +152,25 @@ class MainWindow(Adw.ApplicationWindow):
         # Connect results list
         self.results_list.connect("row-selected", self._on_result_selected)
 
+        # Connect find bar signal
+        self.find_entry.connect("search-changed", self._on_find_text_changed)
+        self.find_entry.connect("activate", self._on_find_activate)
+        self.find_entry.connect("stop-search", self._on_find_close)
+        self.find_prev_button.connect("clicked", self._on_find_prev)
+        self.find_next_button.connect("clicked", self._on_find_next)
+        self.find_close_button.connect("clicked", self._on_find_close)
+        # Hide find bar by default
+        self.find_bar.set_visible(False)
+
         # Create and add webview
         try:
             self.manager = WebKit.UserContentManager()
             self.webview = WebKit.WebView(user_content_manager=self.manager)
+
+            self.find_controller = self.webview.get_find_controller()
+            self.find_controller.connect("found-text", self._on_found_text)
+            self.find_controller.connect("failed-to-find-text", self._on_failed_to_find_text)
+
             self._apply_webview_settings()
 
             scrolled = Gtk.ScrolledWindow()
@@ -195,6 +220,22 @@ class MainWindow(Adw.ApplicationWindow):
 
         return menu
 
+    def _setup_actions(self) -> None:
+        """Set up window menu actions."""
+        actions = [
+            ("zoom-in", self._on_zoom_in),
+            ("zoom-out", self._on_zoom_out),
+            ("zoom-reset", self._on_zoom_reset),
+            ("find-in-page", self._on_find),
+            ("load-remote", self._on_load_remote),
+            ("print", self._on_print),
+        ]
+
+        for name, callback in actions:
+            action = Gio.SimpleAction.new(name, None)
+            action.connect("activate", callback)
+            self.add_action(action)
+
     def _update_sidebar_title(self) -> None:
         """Update sidebar title based on current view."""
         title_widget: Adw.WindowTitle = self.sidebar_header.get_title_widget()
@@ -208,23 +249,23 @@ class MainWindow(Adw.ApplicationWindow):
     def _apply_webview_settings(self) -> None:
         """Apply user preferences to WebView."""
         settings: WebKit.Settings = self.webview.get_settings()
+
+        # Apply zoom level
+        self.webview.set_zoom_level(self.zoom_level)
         
         # Force dark mode
-        force_dark: bool = self.settings_manager.get('force_dark_mode', True)
+        force_dark: bool = self.settings_manager.force_dark
         self._apply_dark_mode_css(force_dark)
 
         from ..utils.utils import get_init_html
         self.webview.load_html(get_init_html(force_dark))
         
         # Enable/disable JavaScript
-        enable_js: bool = self.settings_manager.get('enable_javascript', True)
+        enable_js: bool = self.settings_manager.enable_javascript
         settings.set_property("enable-javascript", enable_js)
-        
-        # Load remote content
-        self.load_remote: bool = self.settings_manager.get('load_remote_content', False)
-        self.webview.connect("resource-load-started", self._on_resource_load_started)
 
-        # Context menu
+        self.webview.connect("resource-load-started", self._on_resource_load_started)
+        self.webview.connect("load-changed", self._on_load_changed)
         self.webview.connect("context-menu", self._on_context_menu)
 
     def _apply_dark_mode_css(self, force_dark: bool) -> None:
@@ -254,7 +295,7 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle WebView context menu customization."""
         try:
             # Add Lookup option
-            if hit_test_result.context_is_selection() and self.settings_manager.get('enable_javascript', True):
+            if hit_test_result.context_is_selection() and self.settings_manager.enable_javascript:
                 lookup_action = Gio.SimpleAction.new("lookup", None)
                 lookup_action.connect("activate", self._on_lookup_selected)
                 lookup_item = WebKit.ContextMenuItem.new_from_gaction(
@@ -337,6 +378,21 @@ class MainWindow(Adw.ApplicationWindow):
             # Blocks remote resources by redirecting them
             request.set_uri("about:blank")
 
+    def _on_load_changed(self, webview: WebKit.WebView, event: WebKit.LoadEvent) -> None:
+        """Handle page load events.
+        
+        Events:
+        - WEBKIT_LOAD_STARTED: Page load has started
+        - WEBKIT_LOAD_REDIRECTED: Page load has been redirected
+        - WEBKIT_LOAD_COMMITTED: Page load has been committed
+        - WEBKIT_LOAD_FINISHED: Page load has finished
+        """
+        if event == WebKit.LoadEvent.FINISHED:
+            # Page finished loading
+            if self.remote_reload_pending:
+                self.load_remote = self.settings_manager.load_remote_content
+                self.remote_reload_pending = False
+
     def on_dictionary_updated(self) -> None:
         if hasattr(self, 'search_entry'):
             self._on_search_changed(self.search_entry)
@@ -374,6 +430,11 @@ class MainWindow(Adw.ApplicationWindow):
                 self._update_bookmark_button()
             self._update_content_subtitle(subtitle)
             self._update_nav_buttons()
+
+    def _on_find(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        """Open find bar for searching page content."""
+        self.find_bar.set_visible(True)
+        self.find_entry.grab_focus()
     
     def _on_bookmark_clicked(self, button: Gtk.Button) -> None:
         """Toggle bookmark for current entry."""
@@ -390,6 +451,38 @@ class MainWindow(Adw.ApplicationWindow):
             self.bookmarks_db.add_bookmark(entry)
             self.bookmark_button.set_icon_name("starred-symbolic")
         self._on_history_search_changed(self.history_search_entry)
+
+    def _on_zoom_in(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        """Increase zoom level by 10% up to 300%."""
+        if hasattr(self, 'webview'):
+            self.zoom_level = min(self.zoom_level + 0.1, 3.0)  # Max 300%
+            self.webview.set_zoom_level(self.zoom_level)
+    
+    def _on_zoom_out(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        """Decrease zoom level by 10% up to 50%."""
+        if hasattr(self, 'webview'):
+            self.zoom_level = max(self.zoom_level - 0.1, 0.5)  # Min 50%
+            self.webview.set_zoom_level(self.zoom_level)
+    
+    def _on_zoom_reset(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        """Reset zoom to 100%."""
+        if hasattr(self, 'webview'):
+            self.zoom_level = 1.0
+            self.webview.set_zoom_level(self.zoom_level)
+    
+    def _on_print(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        """Open print dialog for the current page."""
+        if hasattr(self, 'webview'):
+            print_operation = WebKit.PrintOperation.new(self.webview)
+            print_operation.run_dialog(self)
+    
+    def _on_load_remote(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        if self.remote_reload_pending:
+            return
+        
+        self.load_remote = True
+        self.remote_reload_pending = True
+        self.webview.reload()
 
     def _update_bookmark_button(self) -> None:
         """Update bookmark button appearance based on current entry."""
@@ -683,7 +776,7 @@ class MainWindow(Adw.ApplicationWindow):
         """Load entry task with cancellation support."""
         GLib.idle_add(self._render_entry, entry)
         # Add to history
-        if self.settings_manager.get('enable_history', True):
+        if self.settings_manager.enable_history:
             self.history_db.add_entry(entry)
 
     def _render_entry(self, entry: DictEntry, update_history: bool = True) -> None:
@@ -724,9 +817,9 @@ class MainWindow(Adw.ApplicationWindow):
         """Handle window close."""
         self.http_server.stop()
         self.slob_client.close() # FIXME: Move to app level
+        self.settings_manager.zoom_level = self.zoom_level
         return False
 
-    # These methods should be registered as actions in your application class
     def action_lookup(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Switch to lookup view - register as app.lookup action."""
         self.current_view = "lookup"
@@ -825,3 +918,47 @@ class MainWindow(Adw.ApplicationWindow):
                 target_row.grab_focus()
             else: adj.set_value(new_value)
         else: target_row.grab_focus()
+
+    def _on_find_text_changed(self, entry: Gtk.SearchEntry) -> None:
+        """Search as user types."""
+        text = entry.get_text()
+        
+        if text:
+            self.find_controller.search(
+                text,
+                WebKit.FindOptions.WRAP_AROUND | WebKit.FindOptions.CASE_INSENSITIVE,
+                100  # Max 100 matches
+            )
+        else:
+            self.find_prev_button.set_sensitive(False)
+            self.find_next_button.set_sensitive(False)
+            self.find_controller.search_finish()
+
+    def _on_find_activate(self, entry: Gtk.SearchEntry) -> None:
+        """Find next match on Enter."""
+        self.find_controller.search_next()
+
+    def _on_find_next(self, button: Gtk.Button) -> None:
+        """Go to next match."""
+        self.find_controller.search_next()
+
+    def _on_find_prev(self, button: Gtk.Button) -> None:
+        """Go to previous match."""
+        self.find_controller.search_previous()
+
+    def _on_find_close(self, *args: Gtk.Widget) -> None:
+        """Close find bar."""
+        self.find_controller.search_finish()
+        if self.find_bar:
+            self.find_bar.set_visible(False)
+            self.find_entry.set_text("")
+
+    def _on_found_text(self, controller: WebKit.FindController, match_count: int) -> None:
+        """Update match count when text is found."""
+        self.find_prev_button.set_sensitive(match_count > 0)
+        self.find_next_button.set_sensitive(match_count > 0)
+
+    def _on_failed_to_find_text(self, controller: WebKit.FindController) -> None:
+        """Handle when search text is not found."""
+        self.find_prev_button.set_sensitive(False)
+        self.find_next_button.set_sensitive(False)
