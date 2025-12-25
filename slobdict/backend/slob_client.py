@@ -1,29 +1,49 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 from pathlib import Path
-from typing import List, Dict, Optional, Callable
+from typing import List, Dict, Optional, Callable, Tuple
 from .dictionary_manager import DictionaryManager
+from .slob import Slob
+from ..utils.structs import DictEntry, DictEntryContent
 
 class SlobClient:
     """Client for querying slob dictionaries."""
+
+    class DictInfoInner(object):
+        def __init__(self, dict_id: str, dict_name: str, slob: Slob):
+            self._dict_id = dict_id
+            self._dict_name = dict_name
+            self._slob = slob
+
+        @property
+        def id(self) -> str:
+            return self._dict_id
+
+        @property
+        def name(self) -> str:
+            return self._dict_name
+
+        @property
+        def slob(self) -> Slob:
+            return self._slob
+
 
     def __init__(self, on_dictionaries_changed: Optional[Callable] = None):
         """Initialize slob client with dictionary manager."""
         self.dict_manager = DictionaryManager()
         self.data_dir = Path(__file__).parent.parent.parent / "data"
-        self.dictionaries: Dict[str, any] = {}
-        self.current_request_id = None  # Track current request for cancellation
+        self.dictionaries: Dict[str, SlobClient.DictInfoInner] = {}
+        self.current_request_id: int = -1  # Track current request for cancellation
         self.on_dictionaries_changed = on_dictionaries_changed  # Callback for UI updates
         self.load_dictionaries()
 
-    def load_dictionaries(self):
+    def load_dictionaries(self) -> None:
         """Load dictionaries from config directory."""        
         # Clear existing dictionaries
         self.close()
         self.dictionaries = {}
 
         # Load enabled dictionaries from manager
-        from .slob import Slob
         for dict_info in self.dict_manager.get_dictionaries():
             if not dict_info.get('enabled', True):
                 continue
@@ -33,10 +53,12 @@ class SlobClient:
             
             if dict_path.exists():
                 try:
-                    self.dictionaries[dict_info['id']] = {
-                        'label': display_name,
-                        'slob': Slob(str(dict_path)),
-                    }
+                    slob = Slob(str(dict_path))
+                    self.dictionaries[dict_info['id']] = self.DictInfoInner(
+                        dict_id=slob.id,
+                        dict_name=display_name,
+                        slob=slob
+                    )
                     print(f"✓ Loaded: {display_name}")
                 except Exception as e:
                     import traceback
@@ -98,7 +120,7 @@ class SlobClient:
             self.load_dictionaries()  # Reload all dictionaries
         return result
 
-    def search(self, query: str, limit: int = 50, request_id: int = None) -> List[Dict[str, str]]:
+    def search(self, query: str, limit: int = 50, request_id: Optional[int] = None) -> List[DictEntry]:
         """
         Search all dictionaries for matching terms.
         
@@ -108,32 +130,32 @@ class SlobClient:
             request_id: Request ID for cancellation tracking
         
         Returns:
-            List of dicts with 'title' and 'source' keys
+            List of DictEntry
         """
         results = []
         
-        for dict_id, dictionary in self.dictionaries.items():
+        for dict_id, dict_info in self.dictionaries.items():
             # Check if this request has been cancelled
             if request_id and request_id != self.current_request_id:
                 print(f"Search cancelled (request {request_id})")
                 return []
             
             try:
-                matches = self._find_in_slob(dictionary['slob'], query, limit, request_id)
+                matches = self._find_in_slob(dict_info.slob, query, limit, request_id)
                 for match in matches:
-                    results.append({
-                        'id': str(match[0]),
-                        "title": match[1],
-                        "source": dict_id,
-                        "dictionary": dictionary['label'],
-                    })
+                    results.append(DictEntry(
+                        dict_id=dict_id,
+                        dict_name=dict_info.name,
+                        term_id=int(match[0]),
+                        term=match[1]
+                    ))
             except Exception as e:
-                print(f"Error searching {dict_name}: {e}")
+                print(f"Error searching {dict_info.name}: {e}")
 
-        results.sort(key=lambda d: d['title'].casefold())
+        results.sort(key=lambda d: d.term.casefold())
         return results[:limit]
 
-    def _find_in_slob(self, slob, query: str, limit: int, request_id: int = None) -> List[str]:
+    def _find_in_slob(self, slob: Slob, query: str, limit: int, request_id: Optional[int] = None) -> List[Tuple[int, str]]:
         """Find entries in a slob dictionary with cancellation support."""
         results = []
         try:
@@ -152,64 +174,63 @@ class SlobClient:
             print(f"Error in _find_in_slob: {e}")
         return results
 
-    def get_entry(self, key: str, key_id: Optional[int], source: str) -> Optional[Dict[str, str]]:
+    def get_entry(self, key: str, key_id: Optional[int], source: str) -> Optional[DictEntryContent]:
         """
         Get full entry content from a dictionary.
         
         Args:
             key: Entry key
             source: Dictionary source file name
-            request_id: Request ID for cancellation tracking
             
         Returns:
-            Dict with 'content', 'key', 'source' or None if not found
+            DictEntryContent or None if not found
         """
         if source not in self.dictionaries:
             return None
 
         try:
             dictionary = self.dictionaries[source]
-            slob = dictionary['slob']
+            slob: Slob = dictionary.slob
             if key_id:
                 content_type, content = slob.get(key_id)
+                _term_id = key_id
             else:
-                from .slob import find
-                content = None
-                content_type = None
+                from .slob import find, Blob
                 for i, item in enumerate(find(key, slob, match_prefix=True)):
-                    _, blob = item
-                    content = blob.content
+                    blob: Blob = item[1]
                     content_type = blob.content_type
+                    content = blob.content
+                    _term_id = blob.id
                     if key == blob.key or len(key) < len(blob.key):
                         break
                     
             if content:
-                return {
-                    "id": key_id,
-                    "key": key,
-                    "content": content,
-                    "content_type": content_type,
-                    "source": source,
-                    "dictionary": dictionary['label'],
-                }
+                return DictEntryContent(
+                    dict_id=source,
+                    dict_name=dictionary.name,
+                    term_id=_term_id,
+                    term=key,
+                    content_type=content_type,
+                    content=content
+                )
         except Exception as e:
             print(f"Error getting entry {key_id} from {source}: {e}")
 
         return None
 
-    def cancel_request(self, request_id: int):
+    def cancel_request(self, request_id: int) -> None:
         """Cancel a search/lookup request."""
         self.current_request_id = request_id
         print(f"Request {request_id} marked for cancellation")
 
-    def set_current_request(self, request_id: int):
+    def set_current_request(self, request_id: int) -> None:
         """Mark a request as current."""
         self.current_request_id = request_id
 
-    def close(self):
+    def close(self) -> None:
         """Close all open dictionaries."""
         for dictionary in self.dictionaries.values():
             try:
-                dictionary['slob'].close()
+                dictionary.slob.close()
             except Exception:
                 pass

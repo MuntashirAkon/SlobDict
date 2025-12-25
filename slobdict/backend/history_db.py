@@ -4,11 +4,42 @@ from pathlib import Path
 from datetime import datetime
 import sqlite3
 from typing import List, Dict, Optional
+from ..utils.structs import DictEntry
 
 class HistoryDB:
     """Manage dictionary lookup history with SQLite."""
 
-    def __init__(self):
+    class HistoryEntry(DictEntry):
+        def __init__(self,
+            dict_id: str,
+            dict_name: str,
+            term_id: int,
+            term: str,
+            created_at: str
+        ):
+            super().__init__(dict_id, dict_name, term_id, term)
+            self._created_at = created_at
+
+        @property
+        def created_at(self) -> str:
+            return self._created_at
+
+        def created_at_formatted(self) -> str:
+            """Format ISO timestamp for display."""
+            try:
+                # Parse ISO format or SQLite format
+                dt = datetime.fromisoformat(self.created_at.replace('Z', '+00:00'))
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                try:
+                    # Try SQLite format
+                    dt = datetime.strptime(self.created_at, "%Y-%m-%d %H:%M:%S")
+                    return dt.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    return self.created_at
+
+
+    def __init__(self) -> None:
         """Initialize history database."""
         from ..utils.utils import get_config_dir
         self.config_dir = get_config_dir()
@@ -16,7 +47,7 @@ class HistoryDB:
         self.db_path = self.config_dir / "history.db"
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize database schema."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
@@ -35,21 +66,21 @@ class HistoryDB:
             conn.commit()
         print(f"✓ History database initialized at {self.db_path}")
 
-    def add_entry(self, key_id: str, key: str, source: str, dictionary: str):
+    def add_entry(self, entry: DictEntry) -> None:
         """Add entry to history or update timestamp if duplicate."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 # Try to update existing entry
                 cursor = conn.execute(
                     "UPDATE history SET timestamp = CURRENT_TIMESTAMP WHERE key_id = ? AND source = ?",
-                    (key_id, source)
+                    (str(entry.term_id), entry.dict_id)
                 )
                 
                 # If no row was updated, insert new one
                 if cursor.rowcount == 0:
                     conn.execute(
                         "INSERT INTO history (key_id, key, source, dictionary) VALUES (?, ?, ?, ?)",
-                        (key_id, key, source, dictionary)
+                        (str(entry.term_id), entry.term, entry.dict_id, entry.dict_name)
                     )
                 
                 conn.commit()
@@ -59,7 +90,7 @@ class HistoryDB:
         except Exception as e:
             print(f"✗ Failed to add history entry: {e}")
 
-    def _cleanup_old_entries(self):
+    def _cleanup_old_entries(self) -> None:
         """Remove entries older than the 500 most recent."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -81,7 +112,7 @@ class HistoryDB:
         except Exception as e:
             print(f"✗ Failed to cleanup history: {e}")
 
-    def get_history(self, filter_query: str = "", limit: int = 500) -> List[Dict]:
+    def get_history(self, filter_query: str = "", limit: int = 500) -> List[HistoryEntry]:
         """Get history items, optionally filtered."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -102,12 +133,21 @@ class HistoryDB:
                         LIMIT ?
                     """, (limit,))
                 
-                return [dict(row) for row in cursor.fetchall()]
+                rows = []
+                for row in cursor.fetchall():
+                    rows.append(self.HistoryEntry(
+                        term_id=row[0],
+                        term=row[1],
+                        dict_id=row[2],
+                        dict_name=row[3],
+                        created_at=row[4]
+                    ))
+                return rows
         except Exception as e:
             print(f"✗ Failed to get history: {e}")
             return []
 
-    def clear_history(self):
+    def clear_history(self) -> None:
         """Clear all history."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -117,25 +157,11 @@ class HistoryDB:
         except Exception as e:
             print(f"✗ Failed to clear history: {e}")
 
-    def format_timestamp(self, timestamp_str: str) -> str:
-        """Format ISO timestamp for display."""
-        try:
-            # Parse ISO format or SQLite format
-            dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
-        except:
-            try:
-                # Try SQLite format
-                dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-                return dt.strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                return timestamp_str
-
     def get_count(self) -> int:
         """Get total number of history entries."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute("SELECT COUNT(*) FROM history")
-                return cursor.fetchone()[0]
+                return int(cursor.fetchone()[0])
         except:
             return 0

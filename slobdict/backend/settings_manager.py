@@ -8,7 +8,7 @@ from typing import Any, Optional, Callable
 class SettingsManager:
     """Manages application settings and preferences."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize settings manager."""
         from ..utils.utils import get_config_dir
         self.config_dir = get_config_dir()

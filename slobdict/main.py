@@ -4,10 +4,10 @@
 import sys
 from .app import SlobDictApplication
 
-def main():
+def main() -> int:
     """Main entry point."""
     app = SlobDictApplication()
-    return app.run(sys.argv)
+    return int(app.run(sys.argv))
 
 if __name__ == '__main__':
     sys.exit(main())

@@ -27,6 +27,24 @@ if not PY_INSTALLDIR.found()
     error('No valid python3 binary found')
 endif
 
+# Type checking with mypy
+mypy = find_program('mypy', required: false)
+
+if mypy.found()
+  custom_target(
+    'mypy',
+    command: [
+      mypy,
+      '--config-file', meson.current_source_dir() / 'mypy.ini',
+      '--html', meson.current_build_dir() / 'mypy-report',
+      meson.current_source_dir() / meson.project_name()
+    ],
+    output: 'mypy-report',
+    build_by_default: false,
+    install: false
+  )
+endif
+
 PKGDATA_DIR = join_paths(get_option('prefix'), get_option('datadir'), meson.project_name())
 MODULE_DIR = join_paths(PKGDATA_DIR, meson.project_name())
 

@@ -2,15 +2,16 @@
 
 from gi.repository import Adw, Gtk, Gdk
 from pathlib import Path
-from typing import Callable, Optional
+from typing import Callable, Optional, Dict
 import os
 from ..constants import app_id
+from .i18n import _
 
 
 def is_dark_mode() -> bool:
     """Check if the app is in dark mode."""
     style_manager = Adw.StyleManager.get_default()
-    return style_manager.get_dark()
+    return bool(style_manager.get_dark())
 
 def invert_color(color_str: str, hue_rotate_deg: int = 180) -> str:
     """Invert a color"""
@@ -42,7 +43,7 @@ def load_dark_mode_css() -> str:
         print(f"Dark mode CSS not found at {css_path}")
         return ""
 
-def get_config_dir():
+def get_config_dir() -> Path:
     """Use Flatpak sandbox directory when available."""    
     # Check if running in Flatpak
     if os.path.exists('/.flatpak-info'):
@@ -75,17 +76,17 @@ def get_init_html(force_dark: bool) -> str:
         print(f"intro.html not found at {html_path}")
         return f"<html><body><style>:root {{ {css_vars} }}</style></body></html>"
 
-def get_theme_colors():
+def get_theme_colors() -> Dict[str, str]:
     # Get realized style context
     temp = Gtk.Window()
     temp.realize()
     style_context = temp.get_style_context()
     temp.destroy()
     
-    def get_color(name, fallback):
+    def get_color(name: str, fallback: str) -> str:
         try:
             color = style_context.lookup_color(name)[1]
-            return color.to_string()
+            return str(color.to_string())
         except:
             return fallback
     
@@ -149,7 +150,6 @@ def html_to_text(html_content: str) -> str:
 def inline_stylesheets(
     html: str,
     *,
-    extra_css: str = None,
     on_css: Optional[Callable[[str], Optional[str]]] = None,
 ) -> str:
     """
@@ -187,7 +187,7 @@ def inline_stylesheets(
             link.decompose()
             continue
 
-        css_text = on_css(href)
+        css_text = on_css(str(href))
         if css_text is None:
             link.decompose()
             continue
@@ -199,7 +199,7 @@ def inline_stylesheets(
         link.insert_before(style_tag)
         link.decompose()
 
-    return transform(str(soup), remove_classes=True, allow_network=False)
+    return str(transform(str(soup), remove_classes=True, allow_network=False))
 
 def transform_css_to_semantic_html(html: str) -> str:
     """

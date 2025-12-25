@@ -8,12 +8,13 @@ from gi.repository import Gtk, Adw
 from ..backend.settings_manager import SettingsManager
 from ..backend.history_db import HistoryDB
 from ..backend.bookmarks_db import BookmarksDB
+from ..utils.i18n import _
 
 
 class PreferencesDialog(Adw.PreferencesWindow):
     """Preferences dialog for application settings."""
 
-    def __init__(self, parent, settings_manager):
+    def __init__(self, parent, settings_manager: SettingsManager) -> None:
         """Initialize preferences dialog."""
         super().__init__()
         self.set_transient_for(parent)
@@ -133,34 +134,34 @@ class PreferencesDialog(Adw.PreferencesWindow):
         self.javascript_row = javascript_row
         self.history_row = history_row
 
-    def _on_appearance_changed(self, combo_row, param):
+    def _on_appearance_changed(self, combo_row, param) -> None:
         """Handle appearance selection change."""
         selected = combo_row.get_selected()
         appearance_map = {0: 'system', 1: 'light', 2: 'dark'}
         appearance = appearance_map.get(selected, 'system')
         self.settings_manager.set('appearance', appearance)
 
-    def _on_force_dark_changed(self, switch_row, param):
+    def _on_force_dark_changed(self, switch_row, param) -> None:
         """Handle force dark mode toggle."""
         enabled = switch_row.get_active()
         self.settings_manager.set('force_dark_mode', enabled)
 
-    def _on_remote_content_changed(self, switch_row, param):
+    def _on_remote_content_changed(self, switch_row, param) -> None:
         """Handle remote content toggle."""
         enabled = switch_row.get_active()
         self.settings_manager.set('load_remote_content', enabled)
 
-    def _on_javascript_changed(self, switch_row, param):
+    def _on_javascript_changed(self, switch_row, param) -> None:
         """Handle JavaScript toggle."""
         enabled = switch_row.get_active()
         self.settings_manager.set('enable_javascript', enabled)
 
-    def _on_history_enabled_changed(self, switch_row, param):
+    def _on_history_enabled_changed(self, switch_row, param) -> None:
         """Handle history enabled toggle."""
         enabled = switch_row.get_active()
         self.settings_manager.set('enable_history', enabled)
 
-    def _on_clear_history_clicked(self, button):
+    def _on_clear_history_clicked(self, button: Gtk.Button) -> None:
         """Handle clear history button click."""
         dialog = Adw.MessageDialog(transient_for=self)
         dialog.set_heading(_("Clear History?"))
@@ -170,7 +171,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         dialog.set_response_appearance("clear", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.set_default_response("cancel")
         
-        def on_response(dialog, response):
+        def on_response(dialog, response) -> None:
             if response == "clear":
                 try:
                     self.history_db.clear_history()
@@ -182,7 +183,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         dialog.connect("response", on_response)
         dialog.present()
 
-    def _on_clear_bookmarks_clicked(self, button):
+    def _on_clear_bookmarks_clicked(self, button: Gtk.Button) -> None:
         """Handle clear bookmarks button click."""
         dialog = Adw.MessageDialog(transient_for=self)
         dialog.set_heading(_("Clear Bookmarks?"))
@@ -204,7 +205,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         dialog.connect("response", on_response)
         dialog.present()
 
-    def _on_clear_cache_clicked(self, button):
+    def _on_clear_cache_clicked(self, button: Gtk.Button) -> None:
         """Handle clear cache button click."""
         dialog = Adw.MessageDialog(transient_for=self)
         dialog.set_heading(_("Clear Web Cache?"))
@@ -214,7 +215,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
         dialog.set_response_appearance("clear", Adw.ResponseAppearance.DESTRUCTIVE)
         dialog.set_default_response("cancel")
         
-        def on_response(dialog, response):
+        def on_response(dialog, response) -> None:
             if response == "clear":
                 if self._clear_webview_cache():
                     self._show_notification(_("Cache cleared"))
@@ -239,14 +240,14 @@ class PreferencesDialog(Adw.PreferencesWindow):
             print(f"Error clearing cache: {e}")
             return False
 
-    def _show_notification(self, message: str):
+    def _show_notification(self, message: str) -> None:
         """Show a notification."""
         parent = self.get_root()
         if isinstance(parent, Adw.ApplicationWindow):
             toast = Adw.Toast(title=message)
             parent.add_toast(toast)
 
-    def _show_error(self, message: str):
+    def _show_error(self, message: str) -> None:
         """Show an error dialog."""
         dialog = Adw.MessageDialog(transient_for=self)
         dialog.set_heading(_("Error"))

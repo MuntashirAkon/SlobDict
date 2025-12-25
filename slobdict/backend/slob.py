@@ -20,12 +20,14 @@ from abc import abstractmethod
 from bisect import bisect_left
 from builtins import open as fopen
 from collections import namedtuple
-from collections.abc import Sequence
+from collections.abc import Sequence, Iterator
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from functools import lru_cache
 from struct import pack, unpack, calcsize
 from threading import RLock
 from types import MappingProxyType
+from typing import Any, Callable, DefaultDict, Dict, List, Optional, Tuple
 from uuid import uuid4, UUID
 
 import icu
@@ -35,7 +37,10 @@ DEFAULT_COMPRESSION = "lzma2"
 UTF8 = "utf-8"
 MAGIC = b"!-1SLOB\x1F"
 
-Compression = namedtuple("Compression", "compress decompress")
+@dataclass(frozen=True)
+class Compression:
+    compress: Callable[[bytes], bytes]
+    decompress: Callable[[bytes], bytes]
 
 Ref = namedtuple("Ref", "key bin_index item_index fragment")
 
@@ -77,7 +82,7 @@ QUATERNARY = Collator.QUATERNARY
 IDENTICAL = Collator.IDENTICAL
 
 
-def init_compressions():
+def init_compressions() -> Dict[str, Compression]:
     ident = lambda x: x
     compressions = {"": Compression(ident, ident)}
     for name in ("bz2", "zlib"):
@@ -155,17 +160,18 @@ class TagNotFound(Exception):
 
 
 @lru_cache(maxsize=None)
-def sortkey(strength, maxlength=None):
+def sortkey(strength: int, maxlength: Optional[int] = None) -> Callable[[str], bytes]:
     c = Collator.createInstance(Locale(""))
     c.setStrength(strength)
     c.setAttribute(UCollAttribute.ALTERNATE_HANDLING, UCollAttributeValue.SHIFTED)
     if maxlength is None:
-        return c.getSortKey
+        fn: Callable[[str], bytes] = c.getSortKey
+        return fn
     else:
         return lambda x: c.getSortKey(x)[:maxlength]
 
 
-def sortkey_length(strength, word):
+def sortkey_length(strength: int, word: str) -> int:
     c = Collator.createInstance(Locale(""))
     c.setStrength(strength)
     c.setAttribute(UCollAttribute.ALTERNATE_HANDLING, UCollAttributeValue.SHIFTED)
@@ -175,8 +181,8 @@ def sortkey_length(strength, word):
 
 class MultiFileReader(io.BufferedIOBase):
 
-    def __init__(self, *args):
-        filenames = []
+    def __init__(self, *args: str | List[str]) -> None:
+        filenames: List[str] = []
         for arg in args:
             if isinstance(arg, str):
                 filenames.append(arg)
@@ -205,13 +211,14 @@ class MultiFileReader(io.BufferedIOBase):
         self.close()
         return False
 
-    def close(self):
+    def close(self) -> None:
         for f in self._files:
             f.close()
         self._files.clear()
         self._ranges.clear()
 
-    def closed(self):
+    @property
+    def closed(self) -> bool:
         return len(self._ranges) == 0
 
     def isatty(self):
@@ -271,11 +278,11 @@ class MultiFileReader(io.BufferedIOBase):
 
 class CollationKeyList(object):
 
-    def __init__(self, lst, sortkey_):
+    def __init__(self, lst: Sequence, sortkey_: Callable[[str], bytes]) -> None:
         self.lst = lst
         self.sortkey = sortkey_
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.lst)
 
     def __getitem__(self, i):
@@ -284,12 +291,12 @@ class CollationKeyList(object):
 
 class KeydItemDict(object):
 
-    def __init__(self, lst, strength, maxlength=None):
+    def __init__(self, lst: Sequence, strength: int, maxlength: Optional[int] = None):
         self.lst = lst
         self.sortkey = sortkey(strength, maxlength=maxlength)
         self.sortkeylist = CollationKeyList(lst, self.sortkey)
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.lst)
 
     def __getitem__(self, key):
@@ -446,15 +453,15 @@ def set_tag_value(filename, name, value):
         encoding = read_byte_string(f, U_CHAR).decode(UTF8)
         if encodings.search_function(encoding) is None:
             raise UnknownEncoding(encoding)
-        f = StructWriter(StructReader(f, encoding=encoding), encoding=encoding)
-        f.read_tiny_text()
-        tag_count = f.read_byte()
+        _f = StructWriter(StructReader(f, encoding=encoding), encoding=encoding)
+        _f.read_tiny_text()
+        tag_count = _f.read_byte()
         for _ in range(tag_count):
-            key = f.read_tiny_text()
+            key = _f.read_tiny_text()
             if key == name:
-                f.write_tiny_text(value, editable=True)
+                _f.write_tiny_text(value, editable=True)
                 return
-            f.read_tiny_text()
+            _f.read_tiny_text()
     raise TagNotFound(name)
 
 
@@ -609,10 +616,10 @@ class Slob(Sequence):
         return self._store.get(bin_index, bin_item_index)
 
     @lru_cache(maxsize=None)
-    def as_dict(self, strength=TERTIARY, maxlength=None):
+    def as_dict(self, strength: int = TERTIARY, maxlength: Optional[int] = None) -> KeydItemDict:
         return KeydItemDict(self, strength, maxlength=maxlength)
 
-    def close(self):
+    def close(self) -> None:
         self._f.close()
         self._g.close()
 
@@ -657,7 +664,7 @@ class BinMemWriter:
     def __len__(self):
         return len(self.item_dir)
 
-    def finalize(self, fout: "output file", compress: "function"):
+    def finalize(self, fout: StructWriter, compress: Callable[[bytes], bytes]) -> None:
         count = len(self)
         fout.write(pack(U_INT, count))
         for content_type_id in self.content_type_ids:
@@ -679,18 +686,18 @@ class ItemList(Sequence):
         file_.seek(offset)
         if isinstance(count_or_spec, str):
             count_spec = count_or_spec
-            self.count = unpack(count_spec, file_.read(calcsize(count_spec)))[0]
+            self._count = unpack(count_spec, file_.read(calcsize(count_spec)))[0]
         else:
-            self.count = count_or_spec
+            self._count = count_or_spec
         self.pos_offset = file_.tell()
         self.pos_spec = pos_spec
         self.pos_size = calcsize(pos_spec)
-        self.data_offset = self.pos_offset + self.pos_size * self.count
+        self.data_offset = self.pos_offset + self.pos_size * self._count
         if cache_size:
-            self.__getitem__ = lru_cache(maxsize=cache_size)(self.__getitem__)
+            self.__getitem__ = lru_cache(maxsize=cache_size)(self.__getitem__) # type: ignore[method-assign]
 
     def __len__(self):
-        return self.count
+        return self._count
 
     def pos(self, i):
         with self.lock:
@@ -792,12 +799,12 @@ class Store(ItemList):
         return (content_type, content)
 
 
-def find(word, slobs, match_prefix=True):
+def find(word: str, slobs: Slob | List[Slob], match_prefix: bool = True) -> Iterator[Tuple[Slob, Blob]]:
     seen = set()
     if isinstance(slobs, Slob):
         slobs = [slobs]
 
-    variants = []
+    variants: List[Tuple[int, Optional[int]]] = []
 
     for strength in (QUATERNARY, TERTIARY, SECONDARY, PRIMARY):
         variants.append((strength, None))
@@ -887,7 +894,7 @@ class Writer(object):
 
         self.min_bin_size = min_bin_size
 
-        self.current_bin = None
+        self.current_bin: Optional[BinMemWriter] = None
 
         self.blob_count = 0
         self.ref_count = 0
@@ -970,7 +977,7 @@ class Writer(object):
         ):
             self._write_current_bin()
 
-    def add_alias(self, key, target_key):
+    def add_alias(self, key: str, target_key: str) -> None:
         if self.max_redirects:
             try:
                 self._split_key(key)
@@ -990,12 +997,13 @@ class Writer(object):
         if self.observer:
             self.observer(WriterEvent(name, data))
 
-    def _write_current_bin(self):
-        self.f_store_positions.write_long(self.f_store.tell())
-        self.current_bin.finalize(self.f_store, self.compress)
-        self.current_bin = None
+    def _write_current_bin(self) -> None:
+        if self.current_bin:
+            self.f_store_positions.write_long(self.f_store.tell())
+            self.current_bin.finalize(self.f_store, self.compress)
+            self.current_bin = None
 
-    def _write_ref(self, key, bin_index, item_index, fragment=""):
+    def _write_ref(self, key, bin_index, item_index, fragment="") -> None:
         self.f_ref_positions.write_long(self.f_refs.tell())
         self.f_refs.write_text(key)
         self.f_refs.write_int(bin_index)
@@ -1003,7 +1011,7 @@ class Writer(object):
         self.f_refs.write_tiny_text(fragment)
         self.ref_count += 1
 
-    def _sort(self):
+    def _sort(self) -> None:
         self._fire_event("begin_sort")
         f_ref_positions_sorted = self._wbfopen("ref-positions-sorted")
         self.f_refs.flush()
@@ -1091,8 +1099,9 @@ class Writer(object):
                 targets.add((ref.bin_index, ref.item_index, ref.fragment))
                 previous = ref
 
-            for bin_index, item_index, fragment in sorted(targets):
-                self._write_ref(previous.key, bin_index, item_index, fragment)
+            if previous:
+                for bin_index, item_index, fragment in sorted(targets):
+                    self._write_ref(previous.key, bin_index, item_index, fragment)
 
         self._sort()
         self._fire_event("end_resolve_aliases")
@@ -1238,7 +1247,7 @@ class Writer(object):
 
 class TestReadWrite(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
 
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
@@ -1282,7 +1291,7 @@ class TestReadWrite(unittest.TestCase):
 
         self.w = w
 
-    def test_header(self):
+    def test_header(self) -> None:
         with MultiFileReader(self.path) as f:
             header = read_header(f)
 
@@ -1299,7 +1308,7 @@ class TestReadWrite(unittest.TestCase):
 
         self.assertEqual(header.blob_count, len(self.data))
 
-    def test_content(self):
+    def test_content(self) -> None:
         with open(self.path) as r:
             self.assertEqual(len(r), len(self.all_keys))
             self.assertRaises(IndexError, r.__getitem__, len(self.all_keys))
@@ -1310,13 +1319,13 @@ class TestReadWrite(unittest.TestCase):
                 self.assertEqual(item.content.decode(self.blob_encoding), value)
                 self.assertEqual(item.fragment, fragment)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
 
 class TestSort(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
 
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
@@ -1354,18 +1363,18 @@ class TestSort(unittest.TestCase):
 
         self.r = open(self.path)
 
-    def test_sort_order(self):
+    def test_sort_order(self) -> None:
         for i in range(len(self.r)):
             self.assertEqual(self.r[i].key, self.data_sorted[i])
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.r.close()
         self.tmpdir.cleanup()
 
 
 class TestFind(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
 
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
@@ -1397,7 +1406,7 @@ class TestFind(unittest.TestCase):
     def get(self, d, key):
         return list(item.content.decode("ascii") for item in d[key])
 
-    def test_find_identical(self):
+    def test_find_identical(self) -> None:
         d = self.r.as_dict(IDENTICAL)
         self.assertEqual(
             self.get(d, "aa"), ["LATIN SMALL LETTER A;LATIN SMALL LETTER A"]
@@ -1420,7 +1429,7 @@ class TestFind(unittest.TestCase):
             self.get(d, "a a"), ["LATIN SMALL LETTER A;SPACE;LATIN SMALL LETTER A"]
         )
 
-    def test_find_quaternary(self):
+    def test_find_quaternary(self) -> None:
         d = self.r.as_dict(QUATERNARY)
         self.assertEqual(
             self.get(d, "a\u2032a"), ["LATIN SMALL LETTER A;PRIME;LATIN SMALL LETTER A"]
@@ -1433,7 +1442,7 @@ class TestFind(unittest.TestCase):
             ],
         )
 
-    def test_find_tertiary(self):
+    def test_find_tertiary(self) -> None:
         d = self.r.as_dict(TERTIARY)
         self.assertEqual(
             self.get(d, "aa"),
@@ -1448,7 +1457,7 @@ class TestFind(unittest.TestCase):
             ],
         )
 
-    def test_find_secondary(self):
+    def test_find_secondary(self) -> None:
         d = self.r.as_dict(SECONDARY)
         self.assertEqual(
             self.get(d, "aa"),
@@ -1465,7 +1474,7 @@ class TestFind(unittest.TestCase):
             ],
         )
 
-    def test_find_primary(self):
+    def test_find_primary(self) -> None:
         d = self.r.as_dict(PRIMARY)
 
         self.assertEqual(
@@ -1485,14 +1494,14 @@ class TestFind(unittest.TestCase):
             ],
         )
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.r.close()
         self.tmpdir.cleanup()
 
 
 class TestPrefixFind(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
         self.data = ["a", "ab", "abc", "abcd", "abcde"]
@@ -1500,10 +1509,10 @@ class TestPrefixFind(unittest.TestCase):
             for k in self.data:
                 w.add(k.encode("ascii"), k)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test(self):
+    def test(self) -> None:
         with open(self.path) as r:
             for i, k in enumerate(self.data):
                 d = r.as_dict(IDENTICAL, len(k))
@@ -1514,7 +1523,7 @@ class TestPrefixFind(unittest.TestCase):
 
 class TestBestMatch(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path1 = os.path.join(self.tmpdir.name, "test1.slob")
         self.path2 = os.path.join(self.tmpdir.name, "test2.slob")
@@ -1530,7 +1539,7 @@ class TestBestMatch(unittest.TestCase):
             for key in data2:
                 w.add(b"", key)
 
-    def test_best_match(self):
+    def test_best_match(self) -> None:
         self.maxDiff = None
         with open(self.path1) as s1, open(self.path2) as s2:
             result = find("aa", [s1, s2], match_prefix=True)
@@ -1552,24 +1561,24 @@ class TestBestMatch(unittest.TestCase):
             ]
             self.assertEqual(expected, actual)
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
 
 class TestAlias(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test_alias(self):
+    def test_alias(self) -> None:
         too_many_redirects = []
         target_not_found = []
 
-        def observer(event):
+        def observer(event) -> None:
             if event.name == "too_many_redirects":
                 too_many_redirects.append(event.data)
             elif event.name == "alias_target_not_found":
@@ -1646,7 +1655,7 @@ class TestAlias(unittest.TestCase):
 
 class TestBlobId(unittest.TestCase):
 
-    def test(self):
+    def test(self) -> None:
         max_i = 2**32 - 1
         max_j = 2**16 - 1
         i_values = [0, max_i] + [random.randint(1, max_i - 1) for _ in range(100)]
@@ -1658,13 +1667,13 @@ class TestBlobId(unittest.TestCase):
 
 class TestMultiFileReader(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test_read_all(self):
+    def test_read_all(self) -> None:
         fnames = []
         for name in "abcdef":
             path = os.path.join(self.tmpdir.name, name)
@@ -1674,7 +1683,7 @@ class TestMultiFileReader(unittest.TestCase):
         with MultiFileReader(fnames) as m:
             self.assertEqual(m.read().decode(UTF8), "abcdef")
 
-    def test_seek_and_read(self):
+    def test_seek_and_read(self) -> None:
 
         def mkfile(basename, content):
             part = os.path.join(self.tmpdir.name, basename)
@@ -1703,19 +1712,19 @@ class TestMultiFileReader(unittest.TestCase):
 
 class TestFormatErrors(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test_wrong_file_type(self):
+    def test_wrong_file_type(self) -> None:
         name = os.path.join(self.tmpdir.name, "1")
         with fopen(name, "wb") as f:
             f.write(b"123")
         self.assertRaises(UnknownFileFormat, open, name)
 
-    def test_truncated_file(self):
+    def test_truncated_file(self) -> None:
         name = os.path.join(self.tmpdir.name, "1")
 
         with create(name) as f:
@@ -1742,13 +1751,13 @@ class TestFormatErrors(unittest.TestCase):
 
 class TestFindParts(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test_find_parts(self):
+    def test_find_parts(self) -> None:
         names = [
             os.path.join(self.tmpdir.name, name) for name in ("abc-1", "abc-2", "abc-3")
         ]
@@ -1761,21 +1770,21 @@ class TestFindParts(unittest.TestCase):
 
 class TestTooLongText(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test_too_long(self):
+    def test_too_long(self) -> None:
         rejected_keys = []
         rejected_aliases = []
         rejected_alias_targets = []
         rejected_tags = []
         rejected_content_types = []
 
-        def observer(event):
+        def observer(event) -> None:
             if event.name == "key_too_long":
                 rejected_keys.append(event.data)
             elif event.name == "alias_too_long":
@@ -1850,17 +1859,17 @@ class TestTooLongText(unittest.TestCase):
 
 class TestEditTag(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
         with create(self.path) as w:
             w.tag("a", "123456")
             w.tag("b", "654321")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test_edit_existing_tag(self):
+    def test_edit_existing_tag(self) -> None:
         with open(self.path) as f:
             self.assertEqual(f.tags["a"], "123456")
             self.assertEqual(f.tags["b"], "654321")
@@ -1870,27 +1879,27 @@ class TestEditTag(unittest.TestCase):
             self.assertEqual(f.tags["a"], "xyz")
             self.assertEqual(f.tags["b"], "efg")
 
-    def test_edit_nonexisting_tag(self):
+    def test_edit_nonexisting_tag(self) -> None:
         self.assertRaises(TagNotFound, set_tag_value, self.path, "z", "abc")
 
 
 class TestBinItemNumberLimit(unittest.TestCase):
 
-    def setUp(self):
+    def setUp(self) -> None:
         self.tmpdir = tempfile.TemporaryDirectory(prefix="test")
         self.path = os.path.join(self.tmpdir.name, "test.slob")
 
-    def tearDown(self):
+    def tearDown(self) -> None:
         self.tmpdir.cleanup()
 
-    def test_writing_more_then_max_number_of_bin_items(self):
+    def test_writing_more_then_max_number_of_bin_items(self) -> None:
         with create(self.path) as w:
             for _ in range(MAX_BIN_ITEM_COUNT + 2):
                 w.add(b"a", "a")
             self.assertEqual(w.bin_count, 2)
 
 
-def _cli_info(args):
+def _cli_info(args) -> None:
     from collections import OrderedDict
 
     with open(args.path) as s:
@@ -1917,12 +1926,12 @@ def _cli_info(args):
         print("\n")
 
 
-def _print_title(title):
+def _print_title(title) -> None:
     print(title)
     print("-" * len(title))
 
 
-def _cli_tag(args):
+def _cli_tag(args) -> None:
     tag_name = args.name
     if args.value:
         try:
@@ -1934,7 +1943,7 @@ def _cli_tag(args):
             _print_tags(s, tag_name)
 
 
-def _print_tags(s, tag_name=None):
+def _print_tags(s, tag_name=None) -> None:
     if tag_name:
         try:
             value = s.tags[tag_name]
@@ -1946,7 +1955,7 @@ def _print_tags(s, tag_name=None):
         _print_dict(s.tags)
 
 
-def _print_dict(d):
+def _print_dict(d) -> None:
     max_key_len = 0
     for k, v in d.items():
         key_len = len(k)
@@ -1958,7 +1967,7 @@ def _print_dict(d):
         print(fmt.format(k, v))
 
 
-def _cli_find(args):
+def _cli_find(args) -> None:
     with open(args.path) as s:
         match_prefix = not args.whole
         for i, item in enumerate(find(args.query, s, match_prefix=match_prefix)):
@@ -1968,7 +1977,7 @@ def _cli_find(args):
                 break
 
 
-def _cli_aliases(args):
+def _cli_aliases(args) -> None:
     word = args.query
     with open(args.path) as s:
         d = s.as_dict(strength=QUATERNARY)
@@ -2000,13 +2009,13 @@ def _cli_aliases(args):
                 print_item(i, item)
 
 
-def _cli_get(args):
+def _cli_get(args) -> None:
     with open(args.path) as s:
         _content_type, content = s.get(args.blob_id)
         sys.stdout.buffer.write(content)
 
 
-def _p(i, *args, step=100, steps_per_line=50, fmt="{}"):
+def _p(i, *args, step=100, steps_per_line=50, fmt="{}") -> None:
     line = steps_per_line * step
     if i % step == 0 and i != 0:
         sys.stdout.write(".")
@@ -2053,7 +2062,7 @@ def _cli_convert(args):
         split = 1024 * 1024 * args.split
 
         print("Mapping blobs to keys...")
-        blob_to_refs = [
+        blob_to_refs: List[DefaultDict[int, array.array]] = [
             collections.defaultdict(lambda: array.array("L"))
             for i in range(len(s._store))
         ]
@@ -2090,7 +2099,7 @@ def _cli_convert(args):
             size_header_and_tags = w.size_header() + w.size_tags()
             return w, size_header_and_tags
 
-        def fin(t1, w, current_output):
+        def fin(t1, w, current_output) -> Tuple[float, None, int]:
             print(
                 "\nDone adding content to {1} in {0:.2f}s".format(
                     time.time() - t1, current_output
@@ -2147,7 +2156,7 @@ def _cli_convert(args):
     print("\nDone in {0:.2f}s".format(time.time() - t0))
 
 
-def _arg_parser():
+def _arg_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parent = argparse.ArgumentParser(add_help=False)
     parent.add_argument("path", help="Slob path")
@@ -2271,7 +2280,7 @@ def _arg_parser():
 
 def add_dir(
     slb, topdir, prefix="", include_only=None, mime_types=MIME_TYPES, print=print
-):
+) -> None:
     print("Adding", topdir)
     for item in os.walk(topdir):
         dirpath, _dirnames, filenames = item
@@ -2305,18 +2314,15 @@ from datetime import timedelta
 
 class SimpleTimingObserver(object):
 
-    def __init__(self, p=None):
+    def __init__(self, p: Optional[Callable[[str], None]] = None) -> None:
+        self.p = p or self._default_p
+        self.times: Dict[str, float] = {}
 
-        if not p is None:
-            self.p = p
-
-        self.times = {}
-
-    def p(self, text):
+    def _default_p(self, text: str) -> None:
         sys.stdout.write(text)
         sys.stdout.flush()
 
-    def begin(self, name):
+    def begin(self, name) -> None:
         self.times[name] = time.time()
 
     def end(self, name):
@@ -2324,29 +2330,26 @@ class SimpleTimingObserver(object):
         dt = timedelta(seconds=int(time.time() - t0))
         return dt
 
-    def __call__(self, e):
-        p = self.p
-        begin = self.begin
-        end = self.end
+    def __call__(self, e) -> None:
         if e.name == "begin_finalize":
-            p("\nFinished adding content in %s" % end("content"))
-            p("\nFinalizing...")
-            begin("finalize")
+            self.p("\nFinished adding content in %s" % self.end("content"))
+            self.p("\nFinalizing...")
+            self.begin("finalize")
         if e.name == "end_finalize":
-            p("\nFinalized in %s" % end("finalize"))
+            self.p("\nFinalized in %s" % self.end("finalize"))
         elif e.name == "begin_resolve_aliases":
-            p("\nResolving aliases...")
-            begin("aliases")
+            self.p("\nResolving aliases...")
+            self.begin("aliases")
         elif e.name == "end_resolve_aliases":
-            p("\nResolved aliases in %s" % end("aliases"))
+            self.p("\nResolved aliases in %s" % self.end("aliases"))
         elif e.name == "begin_sort":
-            p("\nSorting...")
-            begin("sort")
+            self.p("\nSorting...")
+            self.begin("sort")
         elif e.name == "end_sort":
-            p(" sorted in %s" % end("sort"))
+            self.p(" sorted in %s" % self.end("sort"))
 
 
-def main():
+def main() -> None:
     parser = _arg_parser()
     args = parser.parse_args()
     if hasattr(args, "func"):

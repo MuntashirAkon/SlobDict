@@ -10,7 +10,7 @@ import json
 class DictionaryManager:
     """Manages dictionary files and metadata with automatic format conversion."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         """Initialize dictionary manager."""
         from ..utils.utils import get_config_dir
         self.config_dir = get_config_dir()
@@ -50,7 +50,8 @@ class DictionaryManager:
         if self.metadata_file.exists():
             try:
                 with open(self.metadata_file, 'r') as f:
-                    return json.load(f)
+                    metadata: Dict[str, Dict[str, Any]] = json.load(f)
+                    return metadata
             except (json.JSONDecodeError, IOError):
                 return {}
         return {}

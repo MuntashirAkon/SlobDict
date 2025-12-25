@@ -4,12 +4,43 @@ from pathlib import Path
 from datetime import datetime
 import sqlite3
 from typing import List, Dict, Optional
+from ..utils.structs import DictEntry
 
 
 class BookmarksDB:
     """Manage dictionary entry bookmarks with SQLite."""
 
-    def __init__(self):
+    class BookmarkEntry(DictEntry):
+        def __init__(self,
+            dict_id: str,
+            dict_name: str,
+            term_id: int,
+            term: str,
+            created_at: str
+        ):
+            super().__init__(dict_id, dict_name, term_id, term)
+            self._created_at = created_at
+
+        @property
+        def created_at(self) -> str:
+            return self._created_at
+
+        def created_at_formatted(self) -> str:
+            """Format ISO timestamp for display."""
+            try:
+                # Parse ISO format or SQLite format
+                dt = datetime.fromisoformat(self.created_at.replace('Z', '+00:00'))
+                return dt.strftime("%Y-%m-%d %H:%M:%S")
+            except:
+                try:
+                    # Try SQLite format
+                    dt = datetime.strptime(self.created_at, "%Y-%m-%d %H:%M:%S")
+                    return dt.strftime("%Y-%m-%d %H:%M:%S")
+                except:
+                    return self.created_at
+
+
+    def __init__(self) -> None:
         """Initialize bookmarks database."""
         from ..utils.utils import get_config_dir
         self.config_dir = get_config_dir()
@@ -17,7 +48,7 @@ class BookmarksDB:
         self.db_path = self.config_dir / "bookmarks.db"
         self._init_db()
 
-    def _init_db(self):
+    def _init_db(self) -> None:
         """Initialize database schema."""
         with sqlite3.connect(self.db_path) as conn:
             conn.execute("""
@@ -36,13 +67,13 @@ class BookmarksDB:
             conn.commit()
         print(f"✓ Bookmarks database initialized at {self.db_path}")
 
-    def add_bookmark(self, key_id: str, key: str, source: str, dictionary: str) -> bool:
+    def add_bookmark(self, entry: DictEntry) -> bool:
         """Add entry to bookmarks. Returns True if added, False if already exists."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(
                     "INSERT INTO bookmarks (key_id, key, source, dictionary) VALUES (?, ?, ?, ?)",
-                    (key_id, key, source, dictionary)
+                    (str(entry.term_id), entry.term, entry.dict_id, entry.dict_name)
                 )
                 conn.commit()
                 return cursor.rowcount > 0
@@ -53,13 +84,13 @@ class BookmarksDB:
             print(f"✗ Failed to add bookmark: {e}")
             return False
 
-    def remove_bookmark(self, key_id: str, source: str) -> bool:
+    def remove_bookmark(self, entry: DictEntry) -> bool:
         """Remove entry from bookmarks. Returns True if removed."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(
                     "DELETE FROM bookmarks WHERE key_id = ? AND source = ?",
-                    (key_id, source)
+                    (str(entry.term_id), entry.dict_id)
                 )
                 conn.commit()
                 return cursor.rowcount > 0
@@ -67,20 +98,20 @@ class BookmarksDB:
             print(f"✗ Failed to remove bookmark: {e}")
             return False
 
-    def is_bookmarked(self, key_id: str, source: str) -> bool:
+    def is_bookmarked(self, entry: DictEntry) -> bool:
         """Check if entry is bookmarked."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute(
                     "SELECT 1 FROM bookmarks WHERE key_id = ? AND source = ?",
-                    (key_id, source)
+                    (str(entry.term_id), entry.dict_id)
                 )
                 return cursor.fetchone() is not None
         except Exception as e:
             print(f"✗ Failed to check bookmark: {e}")
             return False
 
-    def get_bookmarks(self, filter_query: str = "", limit: int = 1000) -> List[Dict]:
+    def get_bookmarks(self, filter_query: str = "", limit: int = 1000) -> List[BookmarkEntry]:
         """Get bookmarks, optionally filtered."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -101,12 +132,21 @@ class BookmarksDB:
                         LIMIT ?
                     """, (limit,))
                 
-                return [dict(row) for row in cursor.fetchall()]
+                rows = []
+                for row in cursor.fetchall():
+                    rows.append(self.BookmarkEntry(
+                        term_id=row[0],
+                        term=row[1],
+                        dict_id=row[2],
+                        dict_name=row[3],
+                        created_at=row[4]
+                    ))
+                return rows
         except Exception as e:
             print(f"✗ Failed to get bookmarks: {e}")
             return []
 
-    def clear_bookmarks(self):
+    def clear_bookmarks(self) -> None:
         """Clear all bookmarks."""
         try:
             with sqlite3.connect(self.db_path) as conn:
@@ -116,25 +156,11 @@ class BookmarksDB:
         except Exception as e:
             print(f"✗ Failed to clear bookmarks: {e}")
 
-    def format_timestamp(self, timestamp_str: str) -> str:
-        """Format ISO timestamp for display."""
-        try:
-            # Parse ISO format or SQLite format
-            dt = datetime.fromisoformat(timestamp_str.replace('Z', '+00:00'))
-            return dt.strftime("%Y-%m-%d %H:%M:%S")
-        except:
-            try:
-                # Try SQLite format
-                dt = datetime.strptime(timestamp_str, "%Y-%m-%d %H:%M:%S")
-                return dt.strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                return timestamp_str
-
     def get_count(self) -> int:
         """Get total number of bookmarks."""
         try:
             with sqlite3.connect(self.db_path) as conn:
                 cursor = conn.execute("SELECT COUNT(*) FROM bookmarks")
-                return cursor.fetchone()[0]
+                return int(cursor.fetchone()[0])
         except:
             return 0

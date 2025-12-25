@@ -4,7 +4,9 @@ import gi
 gi.require_version("Gio", "2.0")
 
 from gi.repository import Gio, GLib
+from typing import List, Dict
 from .backend.slob_client import SlobClient
+from .utils.i18n import _
 
 
 # D-Bus SearchProvider2 interface XML: /usr/share/dbus-1/interfaces/org.gnome.ShellSearchProvider2.xml
@@ -41,7 +43,7 @@ SEARCH_PROVIDER_XML = """
 class SlobDictSearchProvider:
     """D-Bus Search Provider for GNOME Shell SearchProvider2 interface."""
 
-    def __init__(self, app):
+    def __init__(self, app: Gio.Application) -> None:
         """
         Initialize the search provider.
         
@@ -100,7 +102,7 @@ class SlobDictSearchProvider:
                 str(e)
             )
 
-    def _get_initial_result_set(self, terms) -> [str]:
+    def _get_initial_result_set(self, terms: List[str]) -> List[str]:
         """
         Search dictionary for terms.
         
@@ -117,7 +119,7 @@ class SlobDictSearchProvider:
 
         return self._get_search_results(search_term)
 
-    def _get_subsearch_result_set(self, previous_results, terms) -> [str]:
+    def _get_subsearch_result_set(self, previous_results: List[str], terms: List[str]) -> List[str]:
         """
         Filter previous results based on additional search terms.
         """
@@ -135,7 +137,7 @@ class SlobDictSearchProvider:
 
         return self._get_search_results(search_term)
 
-    def _get_result_metas(self, results):
+    def _get_result_metas(self, results: List[str]) -> List[Dict[str, GLib.Variant]]:
         """
         Return metadata for each result.
         
@@ -160,7 +162,7 @@ class SlobDictSearchProvider:
 
         return metas
 
-    def _activate_result(self, result, terms, timestamp):
+    def _activate_result(self, result: str, terms: List[str], timestamp: int) -> None:
         """
         Activate a result (user clicked on it).
         
@@ -182,15 +184,15 @@ class SlobDictSearchProvider:
                 # This will be done in on_activate
                 print("SearchProvider: No window, creating one...")
                 self.app.activate()
-                window: MainWindow = self.app.get_active_window()
+                window = self.app.get_active_window()
 
             if window:
                 window.present()
-                entry = {
-                    'id': key_id,
-                    'title': key,
-                    'source': source,
-                }
+                entry = MainWindow.LookupEntry(
+                    term=key,
+                    dict_id=source,
+                    term_id=int(key_id)
+                )
                 window.perform_lookup(search_text, selected_entry=entry)
                 print(f"SearchProvider: Called perform_lookup with key '{key}'")
             else:
@@ -202,7 +204,7 @@ class SlobDictSearchProvider:
         finally:
             self.app.release()
 
-    def _launch_search(self, terms, timestamp):
+    def _launch_search(self, terms: List[str], timestamp: int) -> None:
         """
         Launch search with given terms.
         """
@@ -213,7 +215,7 @@ class SlobDictSearchProvider:
             window: MainWindow = self.app.get_active_window()
             if not window:
                 self.app.activate()
-                window: MainWindow = self.app.get_active_window()
+                window = self.app.get_active_window()
 
             if window:
                 window.present()
@@ -227,7 +229,7 @@ class SlobDictSearchProvider:
         finally:
             self.app.release()
     
-    def _get_search_results(self, search_term: str) -> [str]:
+    def _get_search_results(self, search_term: str) -> List[str]:
         """
         Retrieve search results from dictionaries.
 
@@ -237,7 +239,7 @@ class SlobDictSearchProvider:
         try:
             matches = self.slob_client.search(search_term, limit=5)
             for match in matches[:10]:
-                results.append(f"{match['source']}:{match['id']}:{match['title']}")
+                results.append(f"{match.dict_id}:{match.term_id}:{match.term}")
         except Exception as e:
             print(f"SearchProvider error during lookup: {e}")
             import traceback
@@ -261,22 +263,23 @@ class SlobDictSearchProvider:
         """
         try:
             entry = self.slob_client.get_entry(key, key_id, source)
-            content_type = entry['content_type']
-            content = entry['content']
+            if entry:
+                content_type = entry.content_type
+                content = entry.content
 
-            if content_type.startswith("text/"):
-                content = content.decode('utf-8') if isinstance(content, bytes) else content
-                if content_type.startswith("text/html"):
-                    from .utils.utils import html_to_text
-                    content = self._remove_entry_name(html_to_text(content), key)
-                return content
+                if content_type.startswith("text/"):
+                    content_text = content.decode('utf-8') if isinstance(content, bytes) else str(content)
+                    if content_type.startswith("text/html"):
+                        from .utils.utils import html_to_text
+                        return self._remove_entry_name(html_to_text(content_text), key)
+                    return content_text
         except Exception as e:
             print(f"SearchProvider error getting definition: {e}")
 
         # Fallback if lookup fails
         return _("View definition of %s") % key
     
-    def _remove_entry_name(self, text, word):
+    def _remove_entry_name(self, text: str, word: str) -> str:
         """
         Robust entry name removal - handles variations.
         """

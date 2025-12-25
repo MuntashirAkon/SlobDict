@@ -7,17 +7,20 @@ gi.require_version("Gio", "2.0")
 
 import os
 import sys
+from argparse import ArgumentParser, Namespace
 from gi.repository import Gtk, Adw, Gio, GLib
 from typing import List, Optional
-from .ui.main_window import MainWindow
+from .backend.slob_client import SlobClient
 from .constants import app_id
 from .search_provider import SlobDictSearchProvider
+from .ui.main_window import MainWindow
+from .utils.i18n import _
 
 
 class SlobDictApplication(Adw.Application):
-    """Main GNOME application."""
+    """Main application."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__(
             application_id=app_id,
             flags=Gio.ApplicationFlags.HANDLES_OPEN |
@@ -29,12 +32,12 @@ class SlobDictApplication(Adw.Application):
 
         # Initialize dictionary backend early
         # This allows search provider to work even when no window is open
-        self.slob_client = self._init_slob_client()
+        self.slob_client = SlobClient(self._on_dictionary_updated)
 
         # D-Bus search provider
-        self.search_provider = None
-        self.search_provider_registration = None
-        self.dbus_connection = None
+        self.search_provider: Optional[SlobDictSearchProvider] = None
+        self.search_provider_registration: Optional[int] = None
+        self.dbus_connection: Optional[Gio.DBusConnection] = None
 
         # Application actions
         self._setup_actions()
@@ -43,30 +46,11 @@ class SlobDictApplication(Adw.Application):
 
         self._apply_appearance()
         self.settings_manager.register_callback('appearance', self._on_appearance_changed)
-
-    def _init_slob_client(self):
-        """
-        Initialize the dictionary backend without needing a window.
-        
-        This runs at app startup so that:
-        1. Search provider can access it immediately
-        2. Dictionary works before any window is created
-        3. No UI overhead in search operations
-        
-        Returns:
-            SlobManager instance or None if initialization fails
-        """
-        try:
-            from .backend.slob_client import SlobClient
-            return SlobClient(self._on_dictionary_updated)
-        except Exception as e:
-            print(f"Failed to initialize slob_client: {e}")
-            return None
     
-    def do_startup(self):
+    def do_startup(self) -> None:
         Adw.Application.do_startup(self)
 
-    def do_open(self, files, n_files, hint):
+    def do_open(self, files: List[Gio.File], hint: str) -> None:
         """
         Handle custom URI: slobdict://
         """
@@ -91,7 +75,7 @@ class SlobDictApplication(Adw.Application):
             # Use idle_add to ensure window is fully created
             GLib.idle_add(self._process_uris, uri_list, priority=GLib.PRIORITY_DEFAULT_IDLE)
 
-    def do_command_line(self, command_line):
+    def do_command_line(self, command_line: Gio.ApplicationCommandLine) -> int:
         """
         Handle command-line arguments.
         
@@ -127,7 +111,7 @@ class SlobDictApplication(Adw.Application):
             print(f"Error: {e}", file=sys.stderr)
             return 1
 
-    def do_dbus_register(self, connection, object_path):
+    def do_dbus_register(self, connection: Gio.DBusConnection, object_path: str) -> bool:
         """
         Override to register D-Bus SearchProvider2 interface.
         Called when the application is registered on D-Bus.
@@ -164,7 +148,7 @@ class SlobDictApplication(Adw.Application):
             print(f"Failed to register SearchProvider2: {e}")
             return False
 
-    def do_dbus_unregister(self, connection, object_path):
+    def do_dbus_unregister(self, connection: Gio.DBusConnection, object_path: str) -> None:
         """
         Override to unregister D-Bus SearchProvider2 interface.
         Called when the application is unregistered from D-Bus.
@@ -182,7 +166,7 @@ class SlobDictApplication(Adw.Application):
         self.search_provider = None
         self.dbus_connection = None
 
-    def _setup_actions(self):
+    def _setup_actions(self) -> None:
         """Set up application menu actions."""
         actions = [
             ('dictionaries', self.on_dictionaries),
@@ -199,7 +183,7 @@ class SlobDictApplication(Adw.Application):
             action.connect("activate", callback)
             self.add_action(action)
 
-    def _setup_shortcuts(self):
+    def _setup_shortcuts(self) -> None:
         """Register all keyboard shortcuts."""
         self.set_accels_for_action('app.dictionaries', ['<primary>d'])
         self.set_accels_for_action('app.lookup', ['<primary>l'])
@@ -208,12 +192,12 @@ class SlobDictApplication(Adw.Application):
         self.set_accels_for_action('app.preferences', ['<primary>comma'])
         self.set_accels_for_action('app.quit', ['<primary>q'])
 
-    def on_activate(self, app):
+    def on_activate(self, app: Gio.Application) -> None:
         """Callback for application activation."""
-        window = MainWindow(application=self, settings_manager=self.settings_manager, slob_client=self.slob_client)
+        window = MainWindow(app=self, settings_manager=self.settings_manager, slob_client=self.slob_client)
         window.present()
 
-    def _apply_appearance(self):
+    def _apply_appearance(self) -> None:
         """Apply the current appearance setting."""
         appearance = self.settings_manager.get('appearance', 'system')
         
@@ -224,44 +208,44 @@ class SlobDictApplication(Adw.Application):
         else:
             Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.PREFER_LIGHT)
 
-    def _on_appearance_changed(self, key, value):
+    def _on_appearance_changed(self, key: str, value: bool) -> None:
         """Handle appearance setting change."""
         self._apply_appearance()
     
-    def _on_dictionary_updated(self):
+    def _on_dictionary_updated(self) -> None:
         window = self.get_active_window()
         if window:
             window.on_dictionary_updated()
 
-    def on_dictionaries(self, action, param):
+    def on_dictionaries(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Open dictionaries manager."""
         from .ui.dictionaries_dialog import DictionariesDialog
         window = self.get_active_window()
         dialog = DictionariesDialog(window, self.slob_client)
         dialog.set_visible(True)
 
-    def on_preferences(self, action, param):
+    def on_preferences(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Open preferences dialog."""
         from .ui.preferences_dialog import PreferencesDialog
         dialog = PreferencesDialog(self.get_active_window(), self.settings_manager)
         dialog.set_visible(True)
 
-    def on_search(self, action, param):
+    def on_search(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Handle search action (Ctrl+L)."""
-        window = self.get_active_window()
+        window: MainWindow = self.get_active_window()
         window.action_lookup(action, param)
 
-    def on_bookmarks(self, action, param):
+    def on_bookmarks(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Handle history action (Ctrl+B)."""
-        window = self.get_active_window()
+        window: MainWindow = self.get_active_window()
         window.action_bookmarks(action, param)
 
-    def on_history(self, action, param):
+    def on_history(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Handle history action (Ctrl+H)."""
-        window = self.get_active_window()
+        window: MainWindow = self.get_active_window()
         window.action_history(action, param)
 
-    def on_about(self, action, param):
+    def on_about(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Open about dialog."""
         from .constants import version
         about = Adw.AboutWindow(transient_for=self.get_active_window())
@@ -278,7 +262,7 @@ class SlobDictApplication(Adw.Application):
 
         about.set_visible(True)
 
-    def _process_uris(self, uri_list):
+    def _process_uris(self, uri_list: List[str]) -> bool:
         """
         Process URIs after window is created and ready.
         """
@@ -294,7 +278,7 @@ class SlobDictApplication(Adw.Application):
         
         return False  # Don't retry
 
-    def _handle_uri(self, uri):
+    def _handle_uri(self, uri: str) -> bool:
         """
         Handle slobdict:// URI schemes.
         
@@ -350,11 +334,9 @@ class SlobDictApplication(Adw.Application):
             traceback.print_exc()
         return False
 
-    def _parse_cli_args(self, args: List[str]):
+    def _parse_cli_args(self, args: List[str]) -> Namespace:
         """Parse command-line arguments."""
-        import argparse
-
-        parser = argparse.ArgumentParser(prog='slobdict', description='Slob Dictionary')
+        parser = ArgumentParser(prog='slobdict', description='Slob Dictionary')
         subparsers = parser.add_subparsers(dest='action', required=True)
         
         # search action
@@ -373,7 +355,7 @@ class SlobDictApplication(Adw.Application):
         namespace = parser.parse_args(args)
         return namespace
 
-    def _handle_cli_mode(self, namespace):
+    def _handle_cli_mode(self, namespace: Namespace) -> int:
         """Handle CLI-only mode (no GUI)."""
         try:
             dict_filter = None
@@ -392,13 +374,13 @@ class SlobDictApplication(Adw.Application):
             traceback.print_exc()
             return 1
 
-    def _handle_gui_mode(self, namespace):
+    def _handle_gui_mode(self, namespace: Namespace) -> bool:
         """Handle GUI mode - activate window and process arguments."""
         try:
             window: MainWindow = self.get_active_window()
             if not window:
                 self.activate()
-                window: MainWindow = self.get_active_window()
+                window = self.get_active_window()
             if not window:
                 print("Error: Failed to create window")
                 return False
@@ -413,7 +395,8 @@ class SlobDictApplication(Adw.Application):
                 is_search_term_different = hasattr(namespace, 'search') and namespace.search
                 search_term = namespace.search if is_search_term_different else namespace.term
                 if is_search_term_different:
-                    window.perform_lookup(search_term, selected_entry= { 'title': namespace.term })
+                    entry = MainWindow.LookupEntry(term=namespace.term)
+                    window.perform_lookup(search_term, selected_entry=entry)
                 else:
                     window.perform_lookup(search_term, select_first=True)
                 print(f"GUI: Lookup '{namespace.term}'")
@@ -425,37 +408,38 @@ class SlobDictApplication(Adw.Application):
             traceback.print_exc()
             return False
 
-    def _perform_search(self, search_term):
+    def _perform_search(self, search_term: str) -> None:
         """Perform regular search."""
         window: MainWindow = self.get_active_window()
         if not window:
             self.activate()
-            window: MainWindow = self.get_active_window()
+            window = self.get_active_window()
         
         if window:
             window.perform_lookup(search_term)
 
-    def _perform_lookup(self, word):
+    def _perform_lookup(self, word: str) -> None:
         """Lookup and open first matched word."""
         window: MainWindow = self.get_active_window()
         if not window:
             self.activate()
-            window: MainWindow = self.get_active_window()
+            window = self.get_active_window()
         
         if window:
             window.perform_lookup(word, select_first=True)
 
-    def _perform_lookup_with_search(self, search_term, word):
+    def _perform_lookup_with_search(self, search_term: str, word: str) -> None:
         """Search for term, then select specific word."""
         window: MainWindow = self.get_active_window()
         if not window:
             self.activate()
-            window: MainWindow = self.get_active_window()
+            window = self.get_active_window()
         
         if window:
-            window.perform_lookup(search_term, selected_entry={ 'title': word })
+            entry = MainWindow.LookupEntry(term=word)
+            window.perform_lookup(search_term, selected_entry=entry)
 
-    def _cli_search(self, search_term: str, dict_filter: Optional[set] = None):
+    def _cli_search(self, search_term: str, dict_filter: Optional[set] = None) -> int:
         """CLI search - print matching terms. Format: {key} {dictionary_name}"""
         try:
             matches = self.slob_client.search(search_term)
@@ -467,12 +451,11 @@ class SlobDictApplication(Adw.Application):
             found_count = 0
             for match in matches:
                 try:
-                    word = match['title']
-                    dict_name = match['dictionary']
+                    dict_name = match.dict_name
                     if dict_filter and dict_name not in dict_filter:
                         continue
                     
-                    line = f"\033[1m{word}\033[0m \033[4min\033[0m \033[3m{dict_name}\033[0m"
+                    line = f"\033[1m{match.term}\033[0m \033[4min\033[0m \033[3m{dict_name}\033[0m"
                     print(line)
                     found_count += 1
                 except Exception as e:
@@ -484,7 +467,7 @@ class SlobDictApplication(Adw.Application):
             traceback.print_exc()
             return 1
     
-    def _cli_lookup(self, term: str, dict_filter: Optional[set] = None):
+    def _cli_lookup(self, term: str, dict_filter: Optional[set] = None) -> int:
         """CLI lookup - print definitions."""
         try:
             definitions = self._get_definitions(term, dict_filter)
@@ -510,29 +493,32 @@ class SlobDictApplication(Adw.Application):
             traceback.print_exc()
             return 1
 
-    def _get_definitions(self, term: str, dict_filter: Optional[set] = None):
+    def _get_definitions(self, term: str, dict_filter: Optional[set] = None) -> List[tuple]:
         """Get definitions from slob_client for a term."""
         definitions = []
         try:
             matches = self.slob_client.search(term)
             for match in matches:
-                if match['title'] != term:
+                if match.term != term:
                     continue
                 
-                dict_name = match['dictionary']
+                dict_name = match.dict_name
                 if dict_filter and dict_name not in dict_filter:
                     continue
 
-                entry = self.slob_client.get_entry(match['title'], int(match['id']), match['source'])
+                entry = self.slob_client.get_entry(match.term, match.term_id, match.dict_id)
 
-                content = entry['content']
-                content_type = entry['content_type']
+                if not entry:
+                    continue
+
+                content = entry.content
+                content_type = entry.content_type
 
                 if content_type.startswith('text/html'):
                     # Convert HTML to plain text
                     from .utils.utils import html_to_markdown, inline_stylesheets
 
-                    self.last_source = match['source']
+                    self.last_source = match.dict_id
                     content = content.decode('utf-8') if isinstance(content, bytes) else content
                     content = inline_stylesheets(content, on_css=self.external_css_handler)
                     text = html_to_markdown(content)
@@ -557,5 +543,8 @@ class SlobDictApplication(Adw.Application):
             return None
 
         entry = self.slob_client.get_entry(href, None, self.last_source)
-        content = entry['content']
+        if not entry:
+            return None
+
+        content = entry.content
         return content.decode('utf-8') if isinstance(content, bytes) else content

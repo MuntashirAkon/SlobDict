@@ -5,13 +5,16 @@ gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 
 from gi.repository import Gtk, Adw, Gio, GLib
+from typing import Dict, Any, Optional
 import threading
+from ..backend.slob_client import SlobClient
+from ..utils.i18n import _
 
 
 class DictionariesDialog(Adw.Window):
     """Dialog for managing dictionaries."""
 
-    def __init__(self, parent, slob_client):
+    def __init__(self, parent, slob_client: SlobClient) -> None:
         """Initialize dictionaries dialog."""
         super().__init__()
         self.set_transient_for(parent)
@@ -64,7 +67,7 @@ class DictionariesDialog(Adw.Window):
         # Load dictionaries
         self._refresh_list()
 
-    def _refresh_list(self):
+    def _refresh_list(self) -> None:
         """Refresh the dictionary list."""
         # Clear existing items
         while True:
@@ -86,7 +89,7 @@ class DictionariesDialog(Adw.Window):
                 row = self._create_dict_row(dict_info)
                 self.list_box.append(row)
 
-    def _create_dict_row(self, dict_info):
+    def _create_dict_row(self, dict_info: Dict[str, Any]) -> Gtk.Box:
         """Create a row for a dictionary."""
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         row.set_margin_top(12)
@@ -153,7 +156,7 @@ class DictionariesDialog(Adw.Window):
         
         return row
 
-    def _on_add_clicked(self, button):
+    def _on_add_clicked(self, button: Gtk.Button) -> None:
         """Handle add dictionary button click."""
         dialog = Gtk.FileChooserNative(
             title=_("Select Dictionary"),
@@ -174,7 +177,7 @@ class DictionariesDialog(Adw.Window):
         all_filter.add_pattern("*")
         dialog.add_filter(all_filter)
         
-        def on_response(dialog, response):
+        def on_response(dialog, response) -> None:
             if response == Gtk.ResponseType.ACCEPT:
                 file = dialog.get_file()
                 if file:
@@ -193,7 +196,7 @@ class DictionariesDialog(Adw.Window):
         dialog.connect("response", on_response)
         dialog.show()
 
-    def _show_format_selection_dialog(self, source_path):
+    def _show_format_selection_dialog(self, source_path: str) -> None:
         """Show dialog to select the dictionary format."""
         supported_formats = self.dict_manager.get_supported_formats()
         
@@ -246,7 +249,7 @@ class DictionariesDialog(Adw.Window):
         list_box.select_row(auto_row)  # Select auto-detect by default
         
         # Add format options
-        format_rows = {}
+        format_rows: Dict[Gtk.ListBoxRow, str] = {}
         for fmt_key, fmt_name in sorted(supported_formats.items()):
             row = Gtk.ListBoxRow()
             label = Gtk.Label(label=fmt_name)
@@ -274,7 +277,7 @@ class DictionariesDialog(Adw.Window):
         import_button.set_css_classes(["suggested-action"])
         button_box.append(import_button)
         
-        def on_import_clicked(button):
+        def on_import_clicked(button: Gtk.Button) -> None:
             selected_row = list_box.get_selected_row()
             if selected_row is None:
                 return
@@ -290,7 +293,7 @@ class DictionariesDialog(Adw.Window):
         import_button.connect("clicked", on_import_clicked)
         dialog.present()
 
-    def _import_dictionary_with_format(self, source_path: str, source_format: str = None):
+    def _import_dictionary_with_format(self, source_path: str, source_format: Optional[str] = None) -> None:
         """Import dictionary with specified format in background thread."""
         # Add spinner/progress indicator
         spinner = Gtk.Spinner()
@@ -330,7 +333,7 @@ class DictionariesDialog(Adw.Window):
         progress_window.set_content(toolbar_view)
         progress_window.present()
                 
-        def import_in_background():
+        def import_in_background() -> None:
             """Run import in background thread."""
             error = None
             result = None
@@ -358,7 +361,7 @@ class DictionariesDialog(Adw.Window):
         thread = threading.Thread(target=import_in_background, daemon=True)
         thread.start()
 
-    def _on_import_complete(self, result, error, progress_window):
+    def _on_import_complete(self, result, error, progress_window) -> bool:
         """Handle import completion on main thread."""
         progress_window.close()
         
@@ -372,12 +375,12 @@ class DictionariesDialog(Adw.Window):
         
         return False  # Remove idle handler
 
-    def _on_switch_toggled(self, switch, pspec, filename):
+    def _on_switch_toggled(self, switch, pspec, filename) -> None:
         """Handle enable/disable switch toggle."""
         enabled = switch.get_active()
         self.slob_client.set_dictionary_enabled(filename, enabled)
 
-    def _on_info_clicked(self, button, dict_info):
+    def _on_info_clicked(self, button: Gtk.Button, dict_info) -> None:
         """Handle info button click."""
         from ..utils import slob_tags
         dialog = Adw.MessageDialog(transient_for=self.get_root())
@@ -408,7 +411,7 @@ class DictionariesDialog(Adw.Window):
         dialog.set_default_response("ok")
         dialog.present()
 
-    def _on_delete_clicked(self, button, filename):
+    def _on_delete_clicked(self, button: Gtk.Button, filename: str) -> None:
         """Handle delete button click."""
         dialog = Adw.MessageDialog(transient_for=self.get_root())
         dialog.set_heading(_("Delete Dictionary?"))
@@ -429,14 +432,14 @@ class DictionariesDialog(Adw.Window):
         dialog.connect("response", on_response)
         dialog.present()
 
-    def _show_notification(self, message):
+    def _show_notification(self, message: str) -> None:
         """Show a toast notification."""
         parent = self.get_root()
         if isinstance(parent, Adw.ApplicationWindow):
             toast = Adw.Toast(title=message)
             parent.add_toast(toast)
 
-    def _show_error(self, message):
+    def _show_error(self, message: str) -> None:
         """Show an error dialog."""
         dialog = Adw.MessageDialog(transient_for=self.get_root())
         dialog.set_heading(_("Error"))
