@@ -185,7 +185,7 @@ class SlobDictApplication(Adw.Application):
 
     def _setup_shortcuts(self) -> None:
         """Register all keyboard shortcuts."""
-        self.set_accels_for_action('app.dictionaries', ['<primary>d'])
+        self.set_accels_for_action('app.dictionaries', ['<primary><Shift>d'])
         self.set_accels_for_action('app.lookup', ['<primary>l'])
         self.set_accels_for_action('app.bookmarks', ['<primary>b'])
         self.set_accels_for_action('app.history', ['<primary>h'])
@@ -197,6 +197,7 @@ class SlobDictApplication(Adw.Application):
         self.set_accels_for_action('win.zoom-reset', ['<primary>0'])
         self.set_accels_for_action('win.find-in-page', ['<primary>f'])
         self.set_accels_for_action('win.print', ['<primary>p'])
+        self.set_accels_for_action('win.bookmark', ['<primary>d'])
 
     def on_activate(self, app: Gio.Application) -> None:
         """Callback for application activation."""

@@ -143,7 +143,6 @@ class MainWindow(Adw.ApplicationWindow):
         # Connect button signals
         self.back_button.connect("clicked", self._on_back_clicked)
         self.forward_button.connect("clicked", self._on_forward_clicked)
-        self.bookmark_button.connect("clicked", self._on_bookmark_clicked)
 
         # Connect search signals
         self.search_entry.connect("search-changed", self._on_search_changed)
@@ -229,6 +228,7 @@ class MainWindow(Adw.ApplicationWindow):
             ("find-in-page", self._on_find),
             ("load-remote", self._on_load_remote),
             ("print", self._on_print),
+            ("bookmark", self._on_bookmark),
         ]
 
         for name, callback in actions:
@@ -437,6 +437,22 @@ class MainWindow(Adw.ApplicationWindow):
         self.find_entry.grab_focus()
     
     def _on_bookmark_clicked(self, button: Gtk.Button) -> None:
+        """Toggle bookmark for current entry."""
+        entry = self.current_entry
+        if not entry:
+            return
+                
+        if self.bookmarks_db.is_bookmarked(entry):
+            # Remove bookmark
+            self.bookmarks_db.remove_bookmark(entry)
+            self.bookmark_button.set_icon_name("non-starred-symbolic")
+        else:
+            # Add bookmark
+            self.bookmarks_db.add_bookmark(entry)
+            self.bookmark_button.set_icon_name("starred-symbolic")
+        self._on_history_search_changed(self.history_search_entry)
+
+    def _on_bookmark(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Toggle bookmark for current entry."""
         entry = self.current_entry
         if not entry:

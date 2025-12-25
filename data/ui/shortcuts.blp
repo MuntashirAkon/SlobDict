@@ -30,7 +30,12 @@ Adw.ShortcutsDialog shortcuts_dialog {
   }
 
   Adw.ShortcutsSection {
-    title: C_("shortcut window", "Definitions");
+    title: C_("shortcut window", "Lookup Options");
+
+    Adw.ShortcutsItem {
+      title: C_("shortcut window", "Toggle Bookmark");
+      action-name: "win.bookmark";
+    }
 
     Adw.ShortcutsItem {
       title: C_("shortcut window", "Zoom In");
