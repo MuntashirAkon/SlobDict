@@ -192,12 +192,14 @@ class SlobDictApplication(Adw.Application):
         self.set_accels_for_action('app.preferences', ['<primary>comma'])
         self.set_accels_for_action('app.quit', ['<primary>q'])
 
+        self.set_accels_for_action('win.nav-backward', ['<primary><Shift>braceleft'])
+        self.set_accels_for_action('win.nav-forward', ['<primary><Shift>braceright'])
+        self.set_accels_for_action('win.find-in-page', ['<primary>f'])
+        self.set_accels_for_action('win.bookmark', ['<primary>d'])
         self.set_accels_for_action('win.zoom-in', ["<primary>plus", "<primary>equal"])
         self.set_accels_for_action('win.zoom-out', ['<primary>minus'])
         self.set_accels_for_action('win.zoom-reset', ['<primary>0'])
-        self.set_accels_for_action('win.find-in-page', ['<primary>f'])
         self.set_accels_for_action('win.print', ['<primary>p'])
-        self.set_accels_for_action('win.bookmark', ['<primary>d'])
 
     def on_activate(self, app: Gio.Application) -> None:
         """Callback for application activation."""

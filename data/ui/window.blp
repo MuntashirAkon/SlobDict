@@ -116,11 +116,15 @@ template $MainWindow : Adw.ApplicationWindow {
           Gtk.Button back_button {
             icon-name: "go-previous-symbolic";
             tooltip-text: _("Previous");
+            action-name: "win.nav-backward";
+            sensitive: false;
           }
 
           Gtk.Button forward_button {
             icon-name: "go-next-symbolic";
             tooltip-text: _("Next");
+            action-name: "win.nav-forward";
+            sensitive: false;
           }
 
           Gtk.Button find_button {

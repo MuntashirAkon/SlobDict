@@ -52,7 +52,7 @@ class MainWindow(Adw.ApplicationWindow):
 
     class NavigationHistory:
         history: List[DictEntry] = []
-        current_index: int = -1
+        current_index: int = 0
 
         def __init__(self) -> None:
             pass
@@ -173,10 +173,6 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _setup_ui(self) -> None:
         """Setup UI elements from template."""
-        # Connect button signals
-        self.back_button.connect("clicked", self._on_back_clicked)
-        self.forward_button.connect("clicked", self._on_forward_clicked)
-
         # Connect search signals
         self.search_entry.connect("search-changed", self._on_search_changed)
         self.history_search_entry.connect("search-changed", self._on_history_search_changed)
@@ -217,9 +213,6 @@ class MainWindow(Adw.ApplicationWindow):
             label.set_vexpand(True)
             self.webview_container.append(label)
 
-        # Update next/prev buttons
-        self._update_nav_buttons()
-
     def _setup_menu(self) -> None:
         """Setup application menu."""
         if self.sidebar_menu_button:
@@ -255,13 +248,15 @@ class MainWindow(Adw.ApplicationWindow):
     def _setup_actions(self) -> None:
         """Set up window menu actions."""
         actions = [
+            ("nav-backward", self._on_nav_backward),
+            ("nav-forward", self._on_nav_forward),
+            ("find-in-page", self._on_find),
+            ("bookmark", self._on_bookmark),
             ("zoom-in", self._on_zoom_in),
             ("zoom-out", self._on_zoom_out),
             ("zoom-reset", self._on_zoom_reset),
-            ("find-in-page", self._on_find),
             ("load-remote", self._on_load_remote),
             ("print", self._on_print),
-            ("bookmark", self._on_bookmark),
         ]
 
         for name, callback in actions:
@@ -436,20 +431,24 @@ class MainWindow(Adw.ApplicationWindow):
         """Focus search entry when window is shown."""
         self.search_entry.grab_focus()
 
-    def _on_back_clicked(self, button: Gtk.Button) -> None:
-        """Navigate to previous entry in history."""
+    def _on_nav_backward(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        """Navigate to previous entry in navigation history."""
         if hasattr(self, 'webview'):
             entry = self.navigation_history.prev()
+            if not entry:
+                return
             GLib.idle_add(self._render_entry, entry, False)
             self.current_entry = entry
             self._update_bookmark_button()
             self._update_content_subtitle(entry.term)
             self._update_nav_buttons()
 
-    def _on_forward_clicked(self, button: Gtk.Button) -> None:
-        """Navigate to next entry in history."""
+    def _on_nav_forward(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
+        """Navigate to next entry in navigation history."""
         if hasattr(self, 'webview'):
             entry = self.navigation_history.next()
+            if not entry:
+                return
             GLib.idle_add(self._render_entry, entry, False)
             self.current_entry = entry
             self._update_bookmark_button()
@@ -460,22 +459,6 @@ class MainWindow(Adw.ApplicationWindow):
         """Open find bar for searching page content."""
         self.find_bar.set_visible(True)
         self.find_entry.grab_focus()
-    
-    def _on_bookmark_clicked(self, button: Gtk.Button) -> None:
-        """Toggle bookmark for current entry."""
-        entry = self.current_entry
-        if not entry:
-            return
-                
-        if self.bookmarks_db.is_bookmarked(entry):
-            # Remove bookmark
-            self.bookmarks_db.remove_bookmark(entry)
-            self.bookmark_button.set_icon_name("non-starred-symbolic")
-        else:
-            # Add bookmark
-            self.bookmarks_db.add_bookmark(entry)
-            self.bookmark_button.set_icon_name("starred-symbolic")
-        self._on_history_search_changed(self.history_search_entry)
 
     def _on_bookmark(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Toggle bookmark for current entry."""
