@@ -50,6 +50,40 @@ class MainWindow(Adw.ApplicationWindow):
         def __str__(self) -> str:
             return self.term
 
+    class NavigationHistory:
+        history: List[DictEntry] = []
+        current_index: int = -1
+
+        def __init__(self) -> None:
+            pass
+
+        def has_next(self) -> bool:
+            return self.current_index < len(self.history) - 1
+
+        def has_prev(self) -> bool:
+            return self.current_index > 0
+        
+        def next(self) -> Optional[DictEntry]:
+            if self.has_next():
+                self.current_index += 1
+                return self.history[self.current_index]
+            return None
+
+        def prev(self) -> Optional[DictEntry]:
+            if self.has_prev():
+                self.current_index -= 1
+                return self.history[self.current_index]
+            return None
+
+        def add(self, entry: DictEntry) -> None:
+            # Remove any forward history if we're adding a new entry
+            if self.has_next():
+                self.history = self.history[:self.current_index + 1]
+            
+            self.history.append(entry)
+            self.current_index = len(self.history) - 1
+
+
     __gtype_name__ = "MainWindow"
 
     # Template child bindings
@@ -93,8 +127,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.current_view = "lookup"
         self.search_query = ""
         self.row_to_result: Dict[Gtk.ListBoxRow, DictEntry] = {}
-        self.navigation_history: List[DictEntry] = []  # For back/forward
-        self.current_history_index = -1
+        self.navigation_history = MainWindow.NavigationHistory()
         self.current_entry: Optional[DictEntry] = None  # Track current entry being displayed
         self.current_style: Optional[str] = None  # Stylesheet tracking
         self.zoom_level = self.settings_manager.zoom_level
@@ -406,29 +439,21 @@ class MainWindow(Adw.ApplicationWindow):
     def _on_back_clicked(self, button: Gtk.Button) -> None:
         """Navigate to previous entry in history."""
         if hasattr(self, 'webview'):
-            self.webview.go_back()
-            subtitle = ""
-            if self.current_history_index > 0:
-                self.current_history_index -= 1
-                entry = self.navigation_history[self.current_history_index]
-                subtitle = entry.term
-                self.current_entry = entry
-                self._update_bookmark_button()
-            self._update_content_subtitle(subtitle)
+            entry = self.navigation_history.prev()
+            GLib.idle_add(self._render_entry, entry, False)
+            self.current_entry = entry
+            self._update_bookmark_button()
+            self._update_content_subtitle(entry.term)
             self._update_nav_buttons()
 
     def _on_forward_clicked(self, button: Gtk.Button) -> None:
         """Navigate to next entry in history."""
         if hasattr(self, 'webview'):
-            self.webview.go_forward()
-            subtitle = ""
-            if self.current_history_index < len(self.navigation_history) - 1:
-                self.current_history_index += 1
-                entry = self.navigation_history[self.current_history_index]
-                subtitle = entry.term
-                self.current_entry = entry
-                self._update_bookmark_button()
-            self._update_content_subtitle(subtitle)
+            entry = self.navigation_history.next()
+            GLib.idle_add(self._render_entry, entry, False)
+            self.current_entry = entry
+            self._update_bookmark_button()
+            self._update_content_subtitle(entry.term)
             self._update_nav_buttons()
 
     def _on_find(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
@@ -518,14 +543,8 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _update_nav_buttons(self) -> None:
         """Update back/forward button visibility and sensitivity."""
-        can_go_back = False
-        can_go_forward = False
-        if hasattr(self, 'webview'):
-            can_go_back = self.webview.can_go_back()
-            can_go_forward = self.webview.can_go_forward()
-
-        self.back_button.set_sensitive(can_go_back)
-        self.forward_button.set_sensitive(can_go_forward)
+        self.back_button.set_sensitive(self.navigation_history.has_prev())
+        self.forward_button.set_sensitive(self.navigation_history.has_next())
 
     def _on_search_changed(self, search_entry: Gtk.SearchEntry) -> None:
         """Handle search text changes."""
@@ -809,12 +828,7 @@ class MainWindow(Adw.ApplicationWindow):
         
         # Update navigation history if this is a new entry (not from back/forward)
         if update_history:
-            # Remove any forward history if we're adding a new entry
-            if self.current_history_index < len(self.navigation_history) - 1:
-                self.navigation_history = self.navigation_history[:self.current_history_index + 1]
-            
-            self.navigation_history.append(entry)
-            self.current_history_index = len(self.navigation_history) - 1
+            self.navigation_history.add(entry)
             self._update_nav_buttons()
         
         # Update header bar subtitle with current key
