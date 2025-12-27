@@ -1,10 +1,15 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
+import sqlite3
+
 from pathlib import Path
 from datetime import datetime
-import sqlite3
 from typing import List, Dict, Optional
 from ..utils.structs import DictEntry
+
+
+logger = logging.getLogger(__name__)
 
 
 class BookmarksDB:
@@ -65,7 +70,7 @@ class BookmarksDB:
             # Index for faster lookups
             conn.execute("CREATE INDEX IF NOT EXISTS idx_created_at ON bookmarks(created_at DESC)")
             conn.commit()
-        print(f"✓ Bookmarks database initialized at {self.db_path}")
+        logger.debug(f"✓ Bookmarks database initialized at {self.db_path}")
 
     def add_bookmark(self, entry: DictEntry) -> bool:
         """Add entry to bookmarks. Returns True if added, False if already exists."""
@@ -81,7 +86,7 @@ class BookmarksDB:
             # Already bookmarked
             return False
         except Exception as e:
-            print(f"✗ Failed to add bookmark: {e}")
+            logger.warning(f"✗ Failed to add bookmark: {e}")
             return False
 
     def remove_bookmark(self, entry: DictEntry) -> bool:
@@ -95,7 +100,7 @@ class BookmarksDB:
                 conn.commit()
                 return cursor.rowcount > 0
         except Exception as e:
-            print(f"✗ Failed to remove bookmark: {e}")
+            logger.warning(f"✗ Failed to remove bookmark: {e}")
             return False
 
     def is_bookmarked(self, entry: DictEntry) -> bool:
@@ -108,7 +113,7 @@ class BookmarksDB:
                 )
                 return cursor.fetchone() is not None
         except Exception as e:
-            print(f"✗ Failed to check bookmark: {e}")
+            logger.warning(f"✗ Failed to check bookmark: {e}")
             return False
 
     def get_bookmarks(self, filter_query: str = "", limit: int = 1000) -> List[BookmarkEntry]:
@@ -143,7 +148,7 @@ class BookmarksDB:
                     ))
                 return rows
         except Exception as e:
-            print(f"✗ Failed to get bookmarks: {e}")
+            logger.warning(f"✗ Failed to get bookmarks: {e}")
             return []
 
     def clear_bookmarks(self) -> None:
@@ -152,9 +157,9 @@ class BookmarksDB:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute("DELETE FROM bookmarks")
                 conn.commit()
-            print("✓ Bookmarks cleared")
+            logger.debug("✓ Bookmarks cleared")
         except Exception as e:
-            print(f"✗ Failed to clear bookmarks: {e}")
+            logger.warning(f"✗ Failed to clear bookmarks: {e}")
 
     def get_count(self) -> int:
         """Get total number of bookmarks."""

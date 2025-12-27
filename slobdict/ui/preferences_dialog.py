@@ -3,12 +3,16 @@
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+import logging
 
 from gi.repository import Gtk, Adw
 from ..backend.settings_manager import SettingsManager
 from ..backend.history_db import HistoryDB
 from ..backend.bookmarks_db import BookmarksDB
 from ..utils.i18n import _
+
+
+logger = logging.getLogger(__name__)
 
 
 class PreferencesDialog(Adw.PreferencesWindow):
@@ -177,7 +181,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
                     self.history_db.clear_history()
                     self._show_notification(_("History cleared"))
                 except Exception as e:
-                    print(f"Error clearing history: {e}")
+                    logger.exception(f"Error clearing history.")
                     self._show_error(_("Failed to clear history"))
         
         dialog.connect("response", on_response)
@@ -199,7 +203,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
                     self.bookmarks_db.clear_bookmarks()
                     self._show_notification(_("Bookmarks cleared"))
                 except Exception as e:
-                    print(f"Error clearing bookmarks: {e}")
+                    logger.exception(f"Error clearing bookmarks.")
                     self._show_error(_("Failed to clear bookmarks"))
         
         dialog.connect("response", on_response)
@@ -237,7 +241,7 @@ class PreferencesDialog(Adw.PreferencesWindow):
             manager.clear(data_types, 0, None, None, None)
             return True
         except Exception as e:
-            print(f"Error clearing cache: {e}")
+            logger.exception(f"Error clearing cache.")
             return False
 
     def _show_notification(self, message: str) -> None:

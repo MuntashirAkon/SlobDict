@@ -1,10 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
+import sqlite3
+
 from pathlib import Path
 from datetime import datetime
-import sqlite3
 from typing import List, Dict, Optional
 from ..utils.structs import DictEntry
+
+
+logger = logging.getLogger(__name__)
+
 
 class HistoryDB:
     """Manage dictionary lookup history with SQLite."""
@@ -64,7 +70,7 @@ class HistoryDB:
             # Index for faster lookups
             conn.execute("CREATE INDEX IF NOT EXISTS idx_timestamp ON history(timestamp DESC)")
             conn.commit()
-        print(f"✓ History database initialized at {self.db_path}")
+        logger.debug(f"✓ History database initialized at {self.db_path}")
 
     def add_entry(self, entry: DictEntry) -> None:
         """Add entry to history or update timestamp if duplicate."""
@@ -88,7 +94,7 @@ class HistoryDB:
                 # Cleanup old entries (keep only 500)
                 self._cleanup_old_entries()
         except Exception as e:
-            print(f"✗ Failed to add history entry: {e}")
+            logger.warning(f"✗ Failed to add history entry: {e}")
 
     def _cleanup_old_entries(self) -> None:
         """Remove entries older than the 500 most recent."""
@@ -110,7 +116,7 @@ class HistoryDB:
                     )
                     conn.commit()
         except Exception as e:
-            print(f"✗ Failed to cleanup history: {e}")
+            logger.warning(f"✗ Failed to cleanup history: {e}")
 
     def get_history(self, filter_query: str = "", limit: int = 500) -> List[HistoryEntry]:
         """Get history items, optionally filtered."""
@@ -144,7 +150,7 @@ class HistoryDB:
                     ))
                 return rows
         except Exception as e:
-            print(f"✗ Failed to get history: {e}")
+            logger.warning(f"✗ Failed to get history: {e}")
             return []
 
     def clear_history(self) -> None:
@@ -153,9 +159,9 @@ class HistoryDB:
             with sqlite3.connect(self.db_path) as conn:
                 conn.execute("DELETE FROM history")
                 conn.commit()
-            print("✓ History cleared")
+            logger.debug("✓ History cleared")
         except Exception as e:
-            print(f"✗ Failed to clear history: {e}")
+            logger.warning(f"✗ Failed to clear history: {e}")
 
     def get_count(self) -> int:
         """Get total number of history entries."""

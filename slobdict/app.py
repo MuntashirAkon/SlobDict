@@ -4,9 +4,10 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("Gio", "2.0")
-
+import logging
 import os
 import sys
+
 from argparse import ArgumentParser, Namespace
 from gi.repository import Gtk, Adw, Gio, GLib
 from typing import List, Optional
@@ -15,6 +16,9 @@ from .constants import app_id
 from .search_provider import SlobDictSearchProvider
 from .ui.main_window import MainWindow
 from .utils.i18n import _
+
+
+logger = logging.getLogger(__name__)
 
 
 class SlobDictApplication(Adw.Application):
@@ -66,7 +70,6 @@ class SlobDictApplication(Adw.Application):
         uri_list = []
         for file in files:
             uri = file.get_uri()
-            print(f"do_open: File URI: {uri}")
             if uri.startswith("slobdict://"):
                 uri_list.append(uri)
         
@@ -108,7 +111,7 @@ class SlobDictApplication(Adw.Application):
             # argparse calls sys.exit() on error
             return 1
         except Exception as e:
-            print(f"Error: {e}", file=sys.stderr)
+            logger.exception(f"Error")
             return 1
 
     def do_dbus_register(self, connection: Gio.DBusConnection, object_path: str) -> bool:
@@ -141,11 +144,11 @@ class SlobDictApplication(Adw.Application):
                 None
             )
 
-            print(f"SearchProvider2 interface registered at {provider_path}")
+            logger.debug(f"SearchProvider2 interface registered at {provider_path}")
             return True
 
         except Exception as e:
-            print(f"Failed to register SearchProvider2: {e}")
+            logger.exception(f"Failed to register SearchProvider2.")
             return False
 
     def do_dbus_unregister(self, connection: Gio.DBusConnection, object_path: str) -> None:
@@ -161,7 +164,7 @@ class SlobDictApplication(Adw.Application):
                 connection.unregister_object(self.search_provider_registration)
                 self.search_provider_registration = None
             except Exception as e:
-                print(f"Failed to unregister SearchProvider2: {e}")
+                logger.exception(f"Failed to unregister SearchProvider2.")
 
         self.search_provider = None
         self.dbus_connection = None
@@ -277,10 +280,8 @@ class SlobDictApplication(Adw.Application):
         """
         window = self.get_active_window()
         if not window:
-            print("_process_uris: Window not ready yet, retrying...")
+            logger.debug("_process_uris: Window not ready yet, retrying...")
             return True  # Retry
-        
-        print(f"_process_uris: Window ready, processing {len(uri_list)} URIs")
         
         for uri in uri_list:
             self._handle_uri(uri)
@@ -302,12 +303,12 @@ class SlobDictApplication(Adw.Application):
             
             parsed = urlparse(uri)
             if parsed.scheme != 'slobdict':
-                print(f"URI: Invalid scheme {parsed.scheme}")
+                logger.debug(f"URI: Invalid scheme {parsed.scheme}")
                 return False
 
             action = parsed.netloc
             if action not in ('lookup', 'search'):
-                print(f"URI: Invalid action {action}")
+                logger.debug(f"URI: Invalid action {action}")
                 return False
             
             path_parts = [unquote(part) for part in PurePosixPath(parsed.path).parts]
@@ -319,28 +320,26 @@ class SlobDictApplication(Adw.Application):
                 if len(path_parts) == 2:
                     search_term = path_parts[1]
                     GLib.idle_add(self._perform_search, search_term)
-                    print(f"URI: search '{search_term}'")
+                    logger.debug(f"URI: search '{search_term}'")
                 else:
-                    print("URI: Invalid search format, expects exactly 1 argument: search_term")
+                    logger.warning("URI: Invalid search format, expects exactly 1 argument: search_term")
             elif action == 'lookup':
                 # slobdict://lookup/{word} OR slobdict://lookup/{search_term}/{word}
                 if len(path_parts) == 2:
                     # slobdict://lookup/{word}
                     word = path_parts[1]
                     GLib.idle_add(self._perform_lookup, word)
-                    print(f"URI: lookup '{word}'")
+                    logger.debug(f"URI: lookup '{word}'")
                 elif len(path_parts) >= 3:
                     # slobdict://lookup/{search_term}/{word}
                     search_term = path_parts[1]
                     word = path_parts[2]
                     GLib.idle_add(self._perform_lookup_with_search, search_term, word)
-                    print(f"URI: lookup search='{search_term}' word='{word}'")
+                    logger.debug(f"URI: lookup search='{search_term}' word='{word}'")
                 else:
-                    print("URI: Invalid lookup format, expects 1 or 2 arguments: word and search_term")
+                    logger.warning("URI: Invalid lookup format, expects 1 or 2 arguments: word and search_term")
         except Exception as e:
-            print(f"URI Handler error: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"URI Handler error.")
         return False
 
     def _parse_cli_args(self, args: List[str]) -> Namespace:
@@ -391,14 +390,14 @@ class SlobDictApplication(Adw.Application):
                 self.activate()
                 window = self.get_active_window()
             if not window:
-                print("Error: Failed to create window")
+                logger.warning("Error: Failed to create window")
                 return False
             
             window.present()
             
             if namespace.action == 'search':
                 window.perform_lookup(namespace.search_term)
-                print(f"GUI: Search for '{namespace.search_term}'")
+                logger.debug(f"GUI: Search for '{namespace.search_term}'")
                 return False
             elif namespace.action == 'lookup':
                 is_search_term_different = hasattr(namespace, 'search') and namespace.search
@@ -408,13 +407,11 @@ class SlobDictApplication(Adw.Application):
                     window.perform_lookup(search_term, selected_entry=entry)
                 else:
                     window.perform_lookup(search_term, select_first=True)
-                print(f"GUI: Lookup '{namespace.term}'")
+                logger.debug(f"GUI: Lookup '{namespace.term}'")
                 return False
             return False
         except Exception as e:
-            print(f"Error in GUI mode: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"Error in GUI mode.")
             return False
 
     def _perform_search(self, search_term: str) -> None:
@@ -543,7 +540,7 @@ class SlobDictApplication(Adw.Application):
                     # Unsupported content type
                     definitions.append((dict_name, f"[{content_type}]"))
         except Exception as e:
-            print(f"Error getting definitions: {e}", file=sys.stderr)
+            logger.exception(f"Error getting definitions.")
         
         return definitions
 

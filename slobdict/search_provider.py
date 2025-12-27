@@ -2,6 +2,7 @@
 
 import gi
 gi.require_version("Gio", "2.0")
+import logging
 
 from gi.repository import Gio, GLib
 from typing import List, Dict
@@ -9,6 +10,7 @@ from .backend.slob_client import SlobClient
 from .utils.i18n import _
 
 
+logger = logging.getLogger(__name__)
 # D-Bus SearchProvider2 interface XML: /usr/share/dbus-1/interfaces/org.gnome.ShellSearchProvider2.xml
 SEARCH_PROVIDER_XML = """
 <node>
@@ -65,37 +67,29 @@ class SlobDictSearchProvider:
                 terms = parameters.unpack()[0]
                 results = self._get_initial_result_set(terms)
                 invocation.return_value(GLib.Variant('(as)', (results,)))
-                # Debug: print to verify timing
-                print(f"SearchProvider: GetInitialResultSet returned {len(results)} results for {terms}")
-
+                logger.debug(f"SearchProvider: GetInitialResultSet returned {len(results)} results for {terms}")
             elif method_name == 'GetSubsearchResultSet':
                 previous_results, terms = parameters.unpack()
                 results = self._get_subsearch_result_set(previous_results, terms)
                 invocation.return_value(GLib.Variant('(as)', (results,)))
-                print(f"SearchProvider: GetSubsearchResultSet returned {len(results)} results")
-
+                logger.debug(f"SearchProvider: GetSubsearchResultSet returned {len(results)} results")
             elif method_name == 'GetResultMetas':
                 results = parameters.unpack()[0]
                 metas = self._get_result_metas(results)
                 invocation.return_value(GLib.Variant('(aa{sv})', (metas,)))
-                print(f"SearchProvider: GetResultMetas returned {len(metas)} metas")
-
+                logger.debug(f"SearchProvider: GetResultMetas returned {len(metas)} metas")
             elif method_name == 'ActivateResult':
                 result, terms, timestamp = parameters.unpack()
                 self._activate_result(result, terms, timestamp)
                 invocation.return_value(None)
-                print(f"SearchProvider: ActivateResult for {result}")
-
+                logger.debug(f"SearchProvider: ActivateResult for {result}")
             elif method_name == 'LaunchSearch':
                 terms, timestamp = parameters.unpack()
                 self._launch_search(terms, timestamp)
                 invocation.return_value(None)
-                print(f"SearchProvider: LaunchSearch for {terms}")
-
+                logger.debug(f"SearchProvider: LaunchSearch for {terms}")
         except Exception as e:
-            print(f"SearchProvider error in {method_name}: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"SearchProvider error in {method_name}.")
             invocation.return_error_literal(
                 Gio.DBusError.quark(),
                 Gio.DBusError.FAILED,
@@ -109,12 +103,12 @@ class SlobDictSearchProvider:
         Returns list of result identifiers (e.g., ['word:hello', 'word:help']).
         """
         if not terms or len(terms) == 0:
-            print("SearchProvider: No terms provided")
+            logger.debug("SearchProvider: No terms provided")
             return []
 
         search_term = ' '.join(terms).strip()
         if len(search_term) < 2:
-            print(f"SearchProvider: Search term too short: '{search_term}'")
+            logger.debug(f"SearchProvider: Search term too short: '{search_term}'")
             return []
 
         return self._get_search_results(search_term)
@@ -128,7 +122,7 @@ class SlobDictSearchProvider:
 
         search_term = ' '.join(terms).strip()
         if len(search_term) < 2:
-            print(f"SearchProvider: Search term too short: '{search_term}'")
+            logger.debug(f"SearchProvider: Search term too short: '{search_term}'")
             return []
 
         if len(search_term) > 2 and len(previous_results) == 0:
@@ -157,7 +151,7 @@ class SlobDictSearchProvider:
                 }
                 metas.append(meta)
             except Exception as e:
-                print(f"SearchProvider error getting meta for {result_id}: {e}")
+                logger.warning(f"SearchProvider error getting meta for {result_id}: {e}")
                 # Continue with next result instead of failing
 
         return metas
@@ -175,14 +169,11 @@ class SlobDictSearchProvider:
             source, key_id, key = result.split(':', 2)
             search_text = ' '.join(terms)
 
-            # Get or create window
-            print(f"SearchProvider: Activating result for '{key}'")
-
             window: MainWindow = self.app.get_active_window()
             if not window:
                 # No window exists, we need to create one
                 # This will be done in on_activate
-                print("SearchProvider: No window, creating one...")
+                logger.debug("SearchProvider: No window, creating one...")
                 self.app.activate()
                 window = self.app.get_active_window()
 
@@ -194,13 +185,11 @@ class SlobDictSearchProvider:
                     term_id=int(key_id)
                 )
                 window.perform_lookup(search_text, selected_entry=entry)
-                print(f"SearchProvider: Called perform_lookup with key '{key}'")
+                logger.debug(f"SearchProvider: Called perform_lookup with key '{key}'")
             else:
-                print("SearchProvider: Failed to create/get window")
+                logger.debug("SearchProvider: Failed to create/get window")
         except Exception as e:
-            print(f"SearchProvider error activating result: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"SearchProvider error activating result.")
         finally:
             self.app.release()
 
@@ -222,10 +211,10 @@ class SlobDictSearchProvider:
                 search_text = ' '.join(terms)
                 window.perform_lookup(search_text)
             else:
-                print("SearchProvider: Failed to create/get window for search")
+                logger.debug("SearchProvider: Failed to create/get window for search")
 
         except Exception as e:
-            print(f"SearchProvider error launching search: {e}")
+            logger.exception(f"SearchProvider error launching search.")
         finally:
             self.app.release()
     
@@ -241,11 +230,9 @@ class SlobDictSearchProvider:
             for match in matches[:10]:
                 results.append(f"{match.dict_id}:{match.term_id}:{match.term}")
         except Exception as e:
-            print(f"SearchProvider error during lookup: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"SearchProvider error during lookup.")
         
-        print(f"SearchProvider: Returning {len(results)} results")
+        logger.debug(f"SearchProvider: Returning {len(results)} results")
         return results[:10]
 
     def _get_definition(self, key: str, key_id: int, source: str) -> str:
@@ -274,7 +261,7 @@ class SlobDictSearchProvider:
                         return self._remove_entry_name(html_to_text(content_text), key)
                     return content_text
         except Exception as e:
-            print(f"SearchProvider error getting definition: {e}")
+            logger.exception(f"SearchProvider error getting definition.")
 
         # Fallback if lookup fails
         return _("View definition of %s") % key

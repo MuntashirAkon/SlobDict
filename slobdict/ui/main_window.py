@@ -4,6 +4,7 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("WebKit", "6.0")
+import logging
 
 from gi.repository import Gtk, Adw, WebKit, Gio, GLib, Gdk
 from pathlib import Path
@@ -18,6 +19,9 @@ from ..backend.settings_manager import SettingsManager
 from ..constants import app_label, rootdir
 from ..utils.structs import DictEntry
 from ..utils.i18n import _
+
+
+logger = logging.getLogger(__name__)
 
 
 @Gtk.Template(resource_path=rootdir + "/ui/window.ui")
@@ -344,7 +348,7 @@ class MainWindow(Adw.ApplicationWindow):
             
             return False
         except Exception as e:
-            print(f"Error in context menu: {e}")
+            logger.exception(f"Error in context menu for webview.")
             return False
 
     def _on_lookup_selected(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
@@ -364,7 +368,7 @@ class MainWindow(Adw.ApplicationWindow):
                 self._on_get_selection_for_lookup
             )
         except Exception as e:
-            print(f"Error in lookup: {e}")
+            logger.warning(f"Error in _on_lookup_selected: {e}")
     
     def _on_get_selection_for_lookup(self, webview: WebKit.WebView, result: Gio.AsyncResult) -> None:
         """Callback to process selected text."""
@@ -375,7 +379,7 @@ class MainWindow(Adw.ApplicationWindow):
             
             self.perform_lookup(selected_text.strip())
         except Exception as e:
-            print(f"Error in lookup: {e}")
+            logger.warning(f"Error in _on_get_selection_for_lookup: {e}")
 
     def _on_force_dark_changed(self, key: str, value: bool) -> None:
         """Handle force dark mode setting change."""
@@ -402,7 +406,7 @@ class MainWindow(Adw.ApplicationWindow):
     ) -> None:
         uri = request.get_uri()
         if not self.load_remote and uri and not (uri.startswith("http://127.0.0.1") or uri.startswith("data:") or uri.startswith("about:")):
-            print(f"Blocking remote resource: {uri}")
+            logger.debug(f"Blocking remote resource: {uri}")
             # Blocks remote resources by redirecting them
             request.set_uri("about:blank")
 
@@ -617,7 +621,7 @@ class MainWindow(Adw.ApplicationWindow):
                 if first_child:
                     self.results_list.select_row(first_child)
             elif self.scheduled_selected_lookup_item:
-                print(f"Opening {self.scheduled_selected_lookup_item}")
+                logger.debug(f"Opening {self.scheduled_selected_lookup_item}")
                 entry = self.scheduled_selected_lookup_item
                 self.scheduled_selected_lookup_item = None
                 self._activate_row_by_entry(entry)
@@ -807,7 +811,7 @@ class MainWindow(Adw.ApplicationWindow):
         source = quote(entry.dict_id, safe='')
         
         url = f"http://127.0.0.1:{self.http_port}/slob/{source}/{key}?blob={key_id}"
-        print(f"Loading: {url}")
+        logger.debug(f"Loading: {url}")
         
         # Update navigation history if this is a new entry (not from back/forward)
         if update_history:
@@ -911,7 +915,7 @@ class MainWindow(Adw.ApplicationWindow):
             # Select the row
             self.results_list.select_row(target_row)
             GLib.idle_add(self._scroll_to_row, target_row, priority=GLib.PRIORITY_DEFAULT_IDLE)
-            print(f"Activated: {entry}")
+            logger.debug(f"Activated: {entry}")
             return target_row
         
         return None

@@ -1,11 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import os
+import logging
+
 from gi.repository import Adw, Gtk, Gdk
 from pathlib import Path
 from typing import Callable, Optional, Dict
-import os
 from ..constants import app_id
 from .i18n import _
+
+
+logger = logging.getLogger(__name__)
 
 
 def is_dark_mode() -> bool:
@@ -61,7 +66,7 @@ def load_dark_mode_css() -> str:
         with open(css_path, 'r') as f:
             return str(f.read()).replace('.ROOT_CSS {}', f':root {{ --color-bg-inverted: {bg_color}; }}')
     except FileNotFoundError:
-        print(f"Dark mode CSS not found at {css_path}")
+        logger.exception(f"Dark mode CSS not found at {css_path}.")
         return ""
 
 def get_config_dir() -> Path:
@@ -94,7 +99,7 @@ def get_init_html(force_dark: bool) -> str:
                 text = text.replace(old, new)
             return text
     except Exception:
-        print(f"intro.html not found at {html_path}")
+        logger.exception(f"intro.html not found at {html_path}.")
         return f"<html><body><style>:root {{ {css_vars} }}</style></body></html>"
 
 def get_theme_colors() -> Dict[str, str]:
@@ -163,7 +168,7 @@ def html_to_text(html_content: str) -> str:
         
         return text
     except Exception as e:
-        print(f"HTML parsing error: {e}")
+        logger.exception(f"HTML parsing error.")
         # Fallback: remove tags with regex
         import re
         return re.sub(r'<[^>]+>', '', html_content).strip()

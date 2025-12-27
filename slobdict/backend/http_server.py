@@ -1,11 +1,17 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
+import json
 import threading
+
 from http.server import HTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote, quote
-import json
 from typing import Any, Optional, Dict, List
 from .slob_client import SlobClient
+
+
+logger = logging.getLogger(__name__)
+
 
 class DictionaryHTTPHandler(BaseHTTPRequestHandler):
     """HTTP handler for dictionary requests."""
@@ -19,22 +25,19 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
             path = parsed_path.path
             query = parse_qs(parsed_path.query)
 
-            print(f"[HTTP] {self.command} {self.path}")  # Debug log
-            print(f"       Path: {path}")
-            print(f"       Query: {query}")
-            print(f"       Headers: {dict(self.headers)}")  # Debug log
+            logger.debug(f"[HTTP] {self.command} {self.path}")
+            logger.debug(f"       Path: {path}")
+            logger.debug(f"       Query: {query}")
+            logger.debug(f"       Headers: {dict(self.headers)}")
 
             if path == "/find":
                 self._handle_find(query)
             elif path.startswith("/slob/"):
                 self._handle_slob(path, query)
             else:
-                print(f"[HTTP] 404: Unknown path {path}")
                 self._not_found()
         except Exception as e:
-            print(f"[HTTP] Error: {e}")
-            import traceback
-            traceback.print_exc()
+            logger.exception(f"[HTTP] Error")
             self._error_response(500, str(e))
 
     def _handle_slob(self, path: str, query: Dict[str, List[str]]) -> None:
@@ -43,11 +46,8 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
         Returns raw content with proper content type
         """
         # Parse path: /slob/{source}/{key}
-        parts = path.split("/")
-        print(f"[HTTP] Slob path parts: {parts}")
-        
+        parts = path.split("/")        
         if len(parts) < 4:
-            print(f"[HTTP] 404: Invalid path parts length {len(parts)}")
             self._not_found()
             return
 
@@ -55,15 +55,12 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
         key = unquote("/".join(parts[3:]))
         key_id = query.get('blob', [None])[0]
 
-        print(f"[HTTP] Looking for: key='{key}', source='{source}'")
-
         if not self.slob_client:
             self._not_found()
             return
 
         entry = self.slob_client.get_entry(key, int(key_id) if key_id else None, source)
         if not entry:
-            print(f"[HTTP] 404: Entry not found")
             self._not_found()
             return
 
@@ -71,8 +68,6 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
         content_type = entry.content_type
 
         content_bytes = content.encode('utf-8') if isinstance(content, str) else content
-
-        print(f"[HTTP] 200: Serving {content_type} ({len(content_bytes)} bytes) for {key}")
 
         # Serve content with appropriate cache headers
         self.send_response(200)
@@ -92,18 +87,13 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
         """Handle find request: /find?key=<key>&limit=<limit>"""
         key = query.get("key", [""])[0]
         limit_str = query.get("limit", ["100"])[0]
-
-        print(f"[HTTP] Find: key='{key}', limit={limit_str}")
-
         if not key:
-            print(f"[HTTP] 400: Missing key")
             self._error_response(400, "Missing key parameter")
             return
 
         try:
             limit = int(limit_str)
             if limit > 10000:
-                print(f"[HTTP] 413: Limit too large")
                 self._error_response(413, "Limit too large")
                 return
             if limit <= 0:
@@ -116,10 +106,8 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
             return
 
         results = self.slob_client.search(key, limit=limit)
-        
-        print(f"[HTTP] Found {len(results)} results")
 
-        # Format response like Aard 2
+        # Format response like Aard 2 items[].{url|label|dictLabel}
         items = []
         for result in results:
             item = {
@@ -131,9 +119,8 @@ class DictionaryHTTPHandler(BaseHTTPRequestHandler):
 
         response = json.dumps({"items": items})
         response_bytes = response.encode('utf-8')
-        
-        print(f"[HTTP] 200: JSON response ({len(response_bytes)} bytes)")
 
+        # Send reponse
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Access-Control-Allow-Origin", "*")
@@ -187,7 +174,7 @@ class HTTPServer_:
 
         self.thread = threading.Thread(target=self.server.serve_forever, daemon=True)
         self.thread.start()
-        print(f"✓ HTTP server started on http://127.0.0.1:{self.port}")
+        logger.debug(f"✓ HTTP server started on http://127.0.0.1:{self.port}")
 
     def get_port(self) -> Optional[int]:
         """Get the actual port the server is running on."""
@@ -197,4 +184,4 @@ class HTTPServer_:
         """Stop HTTP server."""
         if self.server:
             self.server.shutdown()
-            print("✓ HTTP server stopped")
+            logger.debug("✓ HTTP server stopped")

@@ -55,19 +55,19 @@ sudo dnf install meson ninja-build
 ### Build and Run Locally
 
 ```sh
-./mason_run_local.sh
+./scripts/mason_run_local.sh
 ```
 
 or
 
 ```sh
-./flatpak_run_local.sh
+./scripts/flatpak_run_local.sh
 ```
 
 ### Build Flatpak
 
 ```sh
-./flatpak_build_release.sh
+./scripts/flatpak_build_release.sh
 ```
 
 ## Credits

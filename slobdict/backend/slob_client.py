@@ -1,10 +1,16 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
+
 from pathlib import Path
 from typing import List, Dict, Optional, Callable, Tuple
 from .dictionary_manager import DictionaryManager
 from .slob import Slob
 from ..utils.structs import DictEntry, DictEntryContent
+
+
+logger = logging.getLogger(__name__)
+
 
 class SlobClient:
     """Client for querying slob dictionaries."""
@@ -59,16 +65,14 @@ class SlobClient:
                         dict_name=display_name,
                         slob=slob
                     )
-                    print(f"✓ Loaded: {display_name}")
+                    logger.debug(f"✓ Loaded: {display_name}")
                 except Exception as e:
-                    import traceback
-                    print(f"✗ Failed to load {display_name}: {e}")
-                    traceback.print_exc()
+                    logger.exception(f"✗ Failed to load {display_name}")
             else:
-                print(f"⚠ Not found: {dict_path}")
+                logger.debug(f"⚠ Not found: {dict_path}")
 
         if not self.dictionaries:
-            print("⚠ No dictionaries loaded. Add dictionaries in the Dictionaries manager")
+            logger.debug("⚠ No dictionaries loaded.")
         
         # Notify UI of changes
         if self.on_dictionaries_changed:
@@ -137,7 +141,7 @@ class SlobClient:
         for dict_id, dict_info in self.dictionaries.items():
             # Check if this request has been cancelled
             if request_id and request_id != self.current_request_id:
-                print(f"Search cancelled (request {request_id})")
+                logger.debug(f"Search cancelled (request {request_id})")
                 return []
             
             try:
@@ -150,7 +154,7 @@ class SlobClient:
                         term=match[1]
                     ))
             except Exception as e:
-                print(f"Error searching {dict_info.name}: {e}")
+                logger.exception(f"Error searching {dict_info.name}")
 
         results.sort(key=lambda d: d.term.casefold())
         return results[:limit]
@@ -163,7 +167,7 @@ class SlobClient:
             for i, item in enumerate(find(query, slob, match_prefix=True)):
                 # Check cancellation frequently
                 if request_id and request_id != self.current_request_id:
-                    print(f"Search cancelled during iteration (request {request_id})")
+                    logger.debug(f"Search cancelled during iteration (request {request_id})")
                     return []
 
                 _, blob = item
@@ -171,7 +175,7 @@ class SlobClient:
                 if i == limit:
                     break
         except Exception as e:
-            print(f"Error in _find_in_slob: {e}")
+            logger.exception(f"Error in _find_in_slob")
         return results
 
     def get_entry(self, key: str, key_id: Optional[int], source: str) -> Optional[DictEntryContent]:
@@ -214,14 +218,14 @@ class SlobClient:
                     content=content
                 )
         except Exception as e:
-            print(f"Error getting entry {key_id} from {source}: {e}")
+            logger.exception(f"Error getting entry {key_id} from {source}.")
 
         return None
 
     def cancel_request(self, request_id: int) -> None:
         """Cancel a search/lookup request."""
         self.current_request_id = request_id
-        print(f"Request {request_id} marked for cancellation")
+        logger.debug(f"Request {request_id} marked for cancellation")
 
     def set_current_request(self, request_id: int) -> None:
         """Mark a request as current."""

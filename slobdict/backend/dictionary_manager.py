@@ -1,10 +1,14 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
+import logging
 import os
 import shutil
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 import json
+
+
+logger = logging.getLogger(__name__)
 
 
 class DictionaryManager:
@@ -40,8 +44,8 @@ class DictionaryManager:
             self._pyglossary_available = True
             return True
         except ImportError:
-            print("Warning: PyGlossary not installed. Install with: pip install pyglossary")
-            print("Dictionary conversion will not be available.")
+            logger.warning("Warning: PyGlossary not installed. Install with: pip install pyglossary")
+            logger.warning("Dictionary conversion will not be available.")
             self._pyglossary_available = False
             return False
 
@@ -134,7 +138,7 @@ class DictionaryManager:
                 size_info = "(directory)"
             
             format_info = f" [{source_format}]" if source_format else ""
-            print(f"Converting {source_path.name} {size_info}{format_info} to SLOB...")
+            logger.debug(f"Converting {source_path.name} {size_info}{format_info} to SLOB...")
             
             glos = Glossary()
             
@@ -152,7 +156,7 @@ class DictionaryManager:
             
             output_size = dest_path.stat().st_size
             output_size_mb = output_size / (1024 * 1024)
-            print(f"Conversion complete. Output: {output_size_mb:.2f} MB")
+            logger.debug(f"Conversion complete. Output: {output_size_mb:.2f} MB")
             
             return True
             
@@ -232,11 +236,11 @@ class DictionaryManager:
             
             # Log format info
             format_info = f" (format: {source_format})" if source_format else ""
-            print(f"Importing dictionary: {source.name}{format_info}")
+            logger.debug(f"Importing dictionary: {source.name}{format_info}")
             
             # Check if file already exists
             if slob_dest.exists():
-                print(f"Dictionary already imported: {slob_filename}")
+                logger.info(f"Dictionary already imported: {slob_filename}")
                 # Ensure metadata exists
                 if slob_filename not in self.metadata:
                     try:
@@ -246,7 +250,7 @@ class DictionaryManager:
                             self.metadata[slob_filename]['enabled'] = True
                             self._save_metadata()
                     except Exception as e:
-                        print(f"Warning: Could not extract metadata: {e}")
+                        logger.warning(f"Warning: Could not extract metadata: {e}")
                         # Still return filename even if metadata extraction fails
                 
                 return slob_filename
@@ -258,10 +262,10 @@ class DictionaryManager:
             
             # Convert or copy to SLOB
             if is_slob_source:
-                print(f"Copying SLOB file: {source.name}")
+                logger.debug(f"Copying SLOB file: {source.name}")
                 self._copy_slob_file(source, slob_dest)
             else:
-                print(f"Converting to SLOB{' using format: ' + source_format if source_format else ''}...")
+                logger.debug(f"Converting to SLOB{' using format: ' + source_format if source_format else ''}...")
                 self._convert_to_slob(source, slob_dest, source_format)
             
             # Extract metadata from the SLOB file
@@ -270,31 +274,29 @@ class DictionaryManager:
                 self.metadata[slob_filename] = metadata
                 self.metadata[slob_filename]['enabled'] = True
                 self._save_metadata()
-                print(f"✓ Successfully imported: {slob_filename}")
+                logger.debug(f"✓ Successfully imported: {slob_filename}")
             except Exception as e:
                 # If metadata extraction fails, still return the filename
                 # but log the error for the UI to handle
-                print(f"✗ Metadata extraction failed: {e}")
+                logger.warning(f"✗ Metadata extraction failed: {e}")
                 raise  # Re-raise so UI knows metadata couldn't be extracted
             
             return slob_filename
             
         except FileNotFoundError as e:
-            print(f"FileNotFoundError: {e}")
+            logger.warning(f"FileNotFoundError: {e}")
             raise
         except ValueError as e:
-            print(f"ValueError: {e}")
+            logger.warning(f"ValueError: {e}")
             raise
         except PermissionError as e:
-            print(f"PermissionError: {e}")
+            logger.warning(f"PermissionError: {e}")
             raise
         except RuntimeError as e:
-            print(f"RuntimeError: {e}")
+            logger.warning(f"RuntimeError: {e}")
             raise
         except Exception as e:
-            import traceback
-            traceback.print_exc()
-            print(f"Unexpected error importing dictionary: {e}")
+            logger.exception(f"Unexpected error importing dictionary")
             raise
 
     def _extract_metadata(self, dict_path: str, stem: str) -> Dict[str, Any]:
@@ -345,10 +347,10 @@ class DictionaryManager:
                 del self.metadata[filename]
                 self._save_metadata()
             
-            print(f"Deleted dictionary: {filename}")
+            logger.debug(f"Deleted dictionary: {filename}")
             return True
         except Exception as e:
-            print(f"Error deleting dictionary: {e}")
+            logger.warning(f"Error deleting dictionary: {e}")
             return False
 
     def set_dictionary_enabled(self, filename: str, enabled: bool) -> bool:
@@ -367,11 +369,11 @@ class DictionaryManager:
                 self.metadata[filename]['enabled'] = enabled
                 self._save_metadata()
                 status = "enabled" if enabled else "disabled"
-                print(f"Dictionary {status}: {filename}")
+                logger.debug(f"Dictionary {status}: {filename}")
                 return True
             return False
         except Exception as e:
-            print(f"Error updating dictionary status: {e}")
+            logger.warning(f"Error updating dictionary status: {e}")
             return False
 
     def get_dictionaries(self) -> List[Dict[str, Any]]:
@@ -432,11 +434,11 @@ class DictionaryManager:
 
             return result
         except FileNotFoundError:
-            print("Warning: pyglossary_input_fmts.json not found")
+            logger.warning("Warning: pyglossary_input_fmts.json not found")
             return {}
         except json.JSONDecodeError:
-            print("Warning: Invalid JSON in pyglossary_input_fmts.json")
+            logger.warning("Warning: Invalid JSON in pyglossary_input_fmts.json")
             return {}
         except Exception as e:
-            print(f"Warning: Could not load formats: {e}")
+            logger.warning(f"Warning: Could not load formats: {e}")
             return {}

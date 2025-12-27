@@ -1,8 +1,13 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
+import logging
+
 from pathlib import Path
 from typing import Any, Optional, Callable
+
+
+logger = logging.getLogger(__name__)
 
 
 class SettingsManager:
@@ -54,7 +59,7 @@ class SettingsManager:
             with open(self.settings_file, 'w') as f:
                 json.dump(self.settings, f, indent=2)
         except IOError as e:
-            print(f"Error saving settings: {e}")
+            logger.exception(f"Error saving settings")
 
     def _get(self, key: str, default: Any = None) -> Any:
         """
@@ -186,7 +191,7 @@ class SettingsManager:
                 try:
                     callback(key, value)
                 except Exception as e:
-                    print(f"Error in settings callback: {e}")
+                    logger.exception(f"Error in settings callback")
 
     def reset_to_defaults(self) -> None:
         """Reset all settings to defaults."""
