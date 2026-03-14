@@ -166,7 +166,7 @@ class CatalogParser:
         # Try PLIST/XML first (for .plist or .xml files)
         if source_lower.endswith(('.plist', '.xml')):
             try:
-                data = plistlib.loads(content)
+                data: Dict[str, Any] = plistlib.loads(content)
                 logger.debug(f"Parsed {source_path} as PLIST/XML")
                 
                 # Check if it's an Apple catalog
@@ -206,7 +206,7 @@ class DictionaryCatalogManager:
     - Query and filter dictionaries across catalogs
     """
     
-    def __init__(self, cache_dir: str = None):
+    def __init__(self, cache_dir: Optional[str] = None):
         """
         Initialize the catalog manager.
         
@@ -302,7 +302,7 @@ class DictionaryCatalogManager:
         
         try:
             with open(cache_path, 'r') as f:
-                data = json.load(f)
+                data: Dict[str, Any] = json.load(f)
             logger.debug(f"Loaded catalog from cache: {source}")
             return data
         except Exception as e:
@@ -319,7 +319,7 @@ class DictionaryCatalogManager:
         try:
             with open(meta_path, 'r') as f:
                 metadata = json.load(f)
-            return metadata.get('etag')
+            return str(metadata.get('etag'))
         except Exception:
             return None
     
