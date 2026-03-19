@@ -93,6 +93,12 @@ class SlobDictApplication(Adw.Application):
             self.activate()
             return 0
 
+        if args[1].startswith("slobdict://"):
+            self.activate()
+            # Pass the URI to your existing handler on the idle loop
+            GLib.idle_add(self._handle_uri, args[1])
+            return 0
+
         try:
             # Parse arguments
             namespace = self._parse_cli_args(args[1:])
@@ -206,7 +212,15 @@ class SlobDictApplication(Adw.Application):
 
     def on_activate(self, app: Gio.Application) -> None:
         """Callback for application activation."""
-        window = MainWindow(app=self, settings_manager=self.settings_manager, slob_client=self.slob_client)
+        window = self.get_active_window()
+        if not window:
+            # Only instantiate a new MainWindow if one doesn't exist
+            window = MainWindow(
+                app=self, 
+                settings_manager=self.settings_manager, 
+                slob_client=self.slob_client
+            )
+            
         window.present()
 
     def _apply_appearance(self) -> None:
