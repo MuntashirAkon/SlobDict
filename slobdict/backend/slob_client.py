@@ -200,13 +200,18 @@ class SlobClient:
                 _term_id = key_id
             else:
                 from .slob import find, Blob
+                found = False
                 for i, item in enumerate(find(key, slob, match_prefix=True)):
                     blob: Blob = item[1]
                     content_type = blob.content_type
                     content = blob.content
                     _term_id = blob.id
+                    if not found:
+                        found = True
                     if key == blob.key or len(key) < len(blob.key):
                         break
+                if not found:
+                    content = None
                     
             if content:
                 return DictEntryContent(
