@@ -11,6 +11,7 @@ Slob Dictionary is an application with a polished GTK 4 interface for exploring 
 - Lookup directly from GNOME Activities (see below)
 - Lookup using URI (see below)
 - Lookup from CLI (see below)
+- Lookup by pressing <kbd>Super</kbd> + <kbd>D</kbd> or 4-finger gesture from any place through GNOME extension
 - Bookmarks for saving favorite definitions and terms
 - Zoom in/out/reset, find in page, print features
 - Native light/dark mode following your GNOME desktop theme
@@ -37,6 +38,10 @@ The application currently supports the following URIs:
 Run `slobdict -h` or `flatpak run dev.muntashir.SlobDictGTK -h` for help.
 
 > Slob Dictionary attempts to render formatted HTML/Markdown in the console, but it is not guaranteed to match the actual formatted HTML rendered by a web browser due to inherent limitations.
+
+### GNOME Extension
+
+There is a separate GNOME extension that allows you to lookup any selected text by pressing <kbd>Super</kbd> + <kbd>D</kbd> or 4-finger gesture from any place. Wayland users must log out and log back in after installing or upating the extension.
 
 ### Permissions Used
 

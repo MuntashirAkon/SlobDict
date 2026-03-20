@@ -1,0 +1,10 @@
+{
+    "uuid": "slobdict@muntashir.dev",
+    "name": "Slob Dictionary Quick Lookup",
+    "description": "An extension to make it easy to view defintions from Slob Dictionary by selecting any texts.",
+    "version": 1,
+    "shell-version": [
+        "45", "46", "47", "48", "49"
+    ],
+    "url": "https://github.com/MuntashirAkon/SlobDict"
+}

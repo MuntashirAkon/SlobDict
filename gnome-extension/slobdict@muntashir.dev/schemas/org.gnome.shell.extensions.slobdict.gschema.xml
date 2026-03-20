@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.slobdict" path="/org/gnome/shell/extensions/slobdict/">
+    <key name="lookup-shortcut" type="as">
+      <default><![CDATA[['<Super>d']]]></default>
+      <summary>Shortcut to trigger Slob Dictionary</summary>
+      <description>The keyboard shortcut to grab the primary selection and open Slob Dictionary.</description>
+    </key>
+  </schema>
+</schemalist>

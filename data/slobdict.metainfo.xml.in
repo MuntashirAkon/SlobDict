@@ -16,6 +16,7 @@
             <li>Lookup directly from GNOME Activities (see below)</li>
             <li>Lookup using URI (see below)</li>
             <li>Lookup from Terminal/CLI (see below)</li>
+            <li>Lookup by pressing <kbd>Super</kbd> + <kbd>D</kbd> or 4-finger gesture from any place through GNOME extension</li>
             <li>Bookmarks for saving favorite definitions and terms</li>
             <li>Zoom in/out/reset, find in page, print features</li>
             <li>Native light/dark mode following your GNOME desktop theme</li>
