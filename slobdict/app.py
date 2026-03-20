@@ -456,8 +456,8 @@ class SlobDictApplication(Adw.Application):
             window = self.get_active_window()
         
         if window:
-            entry = MainWindow.LookupEntry(term=word)
-            window.perform_lookup(search_term, selected_entry=entry)
+            entry = MainWindow.LookupEntry(term=word.strip())
+            window.perform_lookup(search_term, selected_entry=entry, select_first=True)
 
     def _cli_search(self, search_term: str, dict_filter: Optional[set] = None) -> int:
         """CLI search - print matching terms. Format: {key} {dictionary_name}"""

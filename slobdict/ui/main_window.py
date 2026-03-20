@@ -615,16 +615,16 @@ class MainWindow(Adw.ApplicationWindow):
 
         # Select an item if requested
         if request_id == self.current_search_request_id:
-            if self.scheduled_select_first_lookup_item:
+            if self.scheduled_selected_lookup_item:
+                logger.debug(f"Opening {self.scheduled_selected_lookup_item}")
+                entry = self.scheduled_selected_lookup_item
+                self.scheduled_selected_lookup_item = None
+                self._activate_row_by_entry(entry, self.scheduled_select_first_lookup_item)
+            elif self.scheduled_select_first_lookup_item:
                 self.scheduled_select_first_lookup_item = False
                 first_child = self.results_list.get_first_child()
                 if first_child:
                     self.results_list.select_row(first_child)
-            elif self.scheduled_selected_lookup_item:
-                logger.debug(f"Opening {self.scheduled_selected_lookup_item}")
-                entry = self.scheduled_selected_lookup_item
-                self.scheduled_selected_lookup_item = None
-                self._activate_row_by_entry(entry)
 
     def _populate_bookmarks(self, filter_query: str = "") -> None:
         """Populate bookmarks list with optional filtering."""
@@ -885,7 +885,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.search_entry.set_text(search)
         self.search_entry.grab_focus()
 
-    def _activate_row_by_entry(self, entry: LookupEntry) -> Gtk.ListBoxRow:
+    def _activate_row_by_entry(self, entry: LookupEntry, select_first: bool = False) -> Gtk.ListBoxRow:
         """
         Find and activate Gtk.ListBoxRow by key or (source and key_id).
         
@@ -917,6 +917,10 @@ class MainWindow(Adw.ApplicationWindow):
             GLib.idle_add(self._scroll_to_row, target_row, priority=GLib.PRIORITY_DEFAULT_IDLE)
             logger.debug(f"Activated: {entry}")
             return target_row
+        elif select_first:
+            first_child = self.results_list.get_first_child()
+            if first_child:
+                    self.results_list.select_row(first_child)
         
         return None
 
