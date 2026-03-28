@@ -40,159 +40,169 @@ template $MainWindow : Adw.ApplicationWindow {
   default-width: 1200;
   default-height: 700;
 
-  Gtk.Box {
-    orientation: horizontal;
-    hexpand: true;
-    vexpand: true;
+  Adw.Breakpoint {
+    condition ("max-width: 600sp")
+    setters { split_view.collapsed: true; }
+  }
+
+  content: Adw.NavigationSplitView split_view {
 
     // Left sidebar
-    Adw.ToolbarView sidebar_toolbar_view {
-      [top]
-      Adw.HeaderBar sidebar_header {
-        show-end-title-buttons: false;
-        show-start-title-buttons: false;
-        
-        title-widget: Adw.WindowTitle {
-          title: _("Lookup");
-          subtitle: "";
-        };
+    sidebar: Adw.NavigationPage {
+      title: _("Sidebar");
 
-        [end]
-        Gtk.MenuButton sidebar_menu_button {
-          icon-name: "open-menu-symbolic";
-        }
-      }
+      Adw.ToolbarView sidebar_toolbar_view {
+        [top]
+        Adw.HeaderBar sidebar_header {
+          show-end-title-buttons: false;
+          show-start-title-buttons: false;
 
-      Gtk.Box {
-        orientation: vertical;
-        hexpand: false;
-        vexpand: true;
+          title-widget: Adw.WindowTitle {
+            title: _("Lookup");
+            subtitle: "";
+          };
 
-        // Search entry for lookup
-        Gtk.SearchEntry search_entry {
-          margin-top: 8;
-          margin-bottom: 8;
-          margin-start: 8;
-          margin-end: 8;
-          placeholder-text: _("Lookup...");
+          [end]
+          Gtk.MenuButton sidebar_menu_button {
+            icon-name: "open-menu-symbolic";
+          }
         }
 
-        // Search entry for history
-        Gtk.SearchEntry history_search_entry {
-          margin-top: 8;
-          margin-bottom: 8;
-          margin-start: 8;
-          margin-end: 8;
-          placeholder-text: _("Filter history...");
-          visible: false;
-        }
-
-        // Results list
-        Gtk.ScrolledWindow {
-          hexpand: true;
+        Gtk.Box {
+          orientation: vertical;
+          hexpand: false;
           vexpand: true;
-          width-request: 300;
 
-          Gtk.ListBox results_list {
-            selection-mode: single;
-            css-classes: ["navigation-sidebar"];
+          // Search entry for lookup
+          Gtk.SearchEntry search_entry {
+            margin-top: 8;
+            margin-bottom: 8;
+            margin-start: 8;
+            margin-end: 8;
+            placeholder-text: _("Lookup...");
+          }
+
+          // Search entry for history
+          Gtk.SearchEntry history_search_entry {
+            margin-top: 8;
+            margin-bottom: 8;
+            margin-start: 8;
+            margin-end: 8;
+            placeholder-text: _("Filter history...");
+            visible: false;
+          }
+
+          // Results list
+          Gtk.ScrolledWindow {
+            hexpand: true;
+            vexpand: true;
+            width-request: 300;
+
+            Gtk.ListBox results_list {
+              selection-mode: single;
+              css-classes: ["navigation-sidebar"];
+            }
           }
         }
       }
-    }
+    };
 
     // Right content area
-    Adw.ToolbarView content_toolbar_view {
-      [top]
-      Adw.HeaderBar content_header {
-        show-end-title-buttons: true;
-        show-start-title-buttons: false;
-        css-classes: ["base-background"];
-        
-        [start]
-        Gtk.Box nav_buttons_box {
-          spacing: 0;
+    content: Adw.NavigationPage {
+      title: _("Content");
 
-          Gtk.Button back_button {
-            icon-name: "go-previous-symbolic";
-            tooltip-text: _("Previous");
-            action-name: "win.nav-backward";
-            sensitive: false;
+      Adw.ToolbarView content_toolbar_view {
+        [top]
+        Adw.HeaderBar content_header {
+          show-end-title-buttons: true;
+          show-start-title-buttons: false;
+          css-classes: ["base-background"];
+
+          [start]
+          Gtk.Box nav_buttons_box {
+            spacing: 0;
+
+            Gtk.Button back_button {
+              icon-name: "go-previous-symbolic";
+              tooltip-text: _("Previous");
+              action-name: "win.nav-backward";
+              sensitive: false;
+            }
+
+            Gtk.Button forward_button {
+              icon-name: "go-next-symbolic";
+              tooltip-text: _("Next");
+              action-name: "win.nav-forward";
+              sensitive: false;
+            }
+
+            Gtk.Button find_button {
+              icon-name: "edit-find-symbolic";
+              tooltip-text: _("Find in page");
+              css-classes: ["flat"];
+              action-name: "win.find-in-page";
+            }
           }
 
-          Gtk.Button forward_button {
-            icon-name: "go-next-symbolic";
-            tooltip-text: _("Next");
-            action-name: "win.nav-forward";
-            sensitive: false;
+          [end]
+          Gtk.Box action_buttons_box {
+            spacing: 0;
+
+            Gtk.Button bookmark_button {
+              icon-name: "non-starred-symbolic";
+              tooltip-text: _("Bookmark");
+              css-classes: ["flat"];
+              action-name: "win.bookmark";
+            }
+
+            Gtk.MenuButton options_menu_button {
+              icon-name: "view-more-symbolic";
+              tooltip-text: _("More options");
+              css-classes: ["flat"];
+              menu-model: options_menu;
+            }
           }
 
-          Gtk.Button find_button {
-            icon-name: "edit-find-symbolic";
-            tooltip-text: _("Find in page");
-            css-classes: ["flat"];
-            action-name: "win.find-in-page";
-          }
+          title-widget: Adw.WindowTitle content_title {
+            title: "Slob Dictionary";
+            subtitle: "";
+          };
         }
 
-        [end]
-        Gtk.Box action_buttons_box {
-          spacing: 0;
+        Gtk.Box webview_container {
+          orientation: vertical;
+          hexpand: true;
+          vexpand: true;
 
-          Gtk.Button bookmark_button {
-            icon-name: "non-starred-symbolic";
-            tooltip-text: _("Bookmark");
-            css-classes: ["flat"];
-            action-name: "win.bookmark";
-          }
+          Gtk.Box find_bar {
+            spacing: 0;
+            orientation: horizontal;
+            css-classes: ["toolbar", "base-background", "find-bar"];
 
-          Gtk.MenuButton options_menu_button {
-            icon-name: "view-more-symbolic";
-            tooltip-text: _("More options");
-            css-classes: ["flat"];
-            menu-model: options_menu;
+            Gtk.SearchEntry find_entry {
+              placeholder-text: _("Find in page...");
+              hexpand: true;
+            }
+
+            Gtk.Button find_prev_button {
+              icon-name: "go-up-symbolic";
+              tooltip-text: _("Previous match");
+              sensitive: false;
+            }
+
+            Gtk.Button find_next_button {
+              icon-name: "go-down-symbolic";
+              tooltip-text: _("Next match");
+              sensitive: false;
+            }
+
+            Gtk.Button find_close_button {
+              icon-name: "window-close-symbolic";
+              tooltip-text: _("Close find in page toolbar");
+            }
           }
         }
-
-        title-widget: Adw.WindowTitle content_title {
-          title: "Slob Dictionary";
-          subtitle: "";
-        };
       }
-
-      Gtk.Box webview_container {
-        orientation: vertical;
-        hexpand: true;
-        vexpand: true;
-
-        Gtk.Box find_bar {
-          spacing: 0;
-          orientation: horizontal;
-          css-classes: ["toolbar", "base-background", "find-bar"];
-
-          Gtk.SearchEntry find_entry {
-            placeholder-text: _("Find in page...");
-            hexpand: true;
-          }
-
-          Gtk.Button find_prev_button {
-            icon-name: "go-up-symbolic";
-            tooltip-text: _("Previous match");
-            sensitive: false;
-          }
-
-          Gtk.Button find_next_button {
-            icon-name: "go-down-symbolic";
-            tooltip-text: _("Next match");
-            sensitive: false;
-          }
-
-          Gtk.Button find_close_button {
-            icon-name: "window-close-symbolic";
-            tooltip-text: _("Close find in page toolbar");
-          }
-        }
-      }
-    }
-  }
+    };
+  };
 }
