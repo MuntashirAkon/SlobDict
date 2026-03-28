@@ -91,6 +91,7 @@ class MainWindow(Adw.ApplicationWindow):
     __gtype_name__ = "MainWindow"
 
     # Template child bindings
+    split_view: Adw.NavigationSplitView = Gtk.Template.Child()
     sidebar_toolbar_view: Adw.ToolbarView = Gtk.Template.Child()
     sidebar_header: Adw.HeaderBar = Gtk.Template.Child()
     sidebar_menu_button: Gtk.MenuButton = Gtk.Template.Child()
@@ -824,6 +825,7 @@ class MainWindow(Adw.ApplicationWindow):
         self.current_entry = entry
         self._update_bookmark_button()
         self.webview.load_uri(url)
+        self.split_view.set_show_content(True)
 
     def _update_content_subtitle(self, subtitle: str) -> None:
         """Update content subtitle"""
