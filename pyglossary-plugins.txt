@@ -1,0 +1,15 @@
+# Required dependencies declared by PyGlossary's supported format plugins.
+# These are part of SlobDict's runtime dependency set, not optional features.
+# beautifulsoup4, lxml, and pyicu are listed in requirements.txt because the
+# SlobDict application uses them directly as well.
+PyYAML
+biplist
+colorize-pinyin
+html5lib
+libzim>=1.0
+marisa-trie
+mistune
+polib
+pymorphy3
+python-romkan-ng
+xxhash

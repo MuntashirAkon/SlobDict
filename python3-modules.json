@@ -164,25 +164,6 @@
       ]
     },
     {
-      "name": "python3-prompt_toolkit",
-      "buildsystem": "simple",
-      "build-commands": [
-        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"prompt_toolkit\" --no-build-isolation"
-      ],
-      "sources": [
-        {
-          "type": "file",
-          "url": "https://files.pythonhosted.org/packages/84/03/0d3ce49e2505ae70cf43bc5bb3033955d2fc9f932163e84dc0779cc47f48/prompt_toolkit-3.0.52-py3-none-any.whl",
-          "sha256": "9aac639a3bbd33284347de5ad8d68ecc044b91a762dc39b7c21095fcd6a19955"
-        },
-        {
-          "type": "file",
-          "url": "https://files.pythonhosted.org/packages/af/b5/123f13c975e9f27ab9c0770f514345bd406d0e8d3b7a0723af9d43f710af/wcwidth-0.2.14-py2.py3-none-any.whl",
-          "sha256": "a7bb560c8aee30f9957e5f9895805edd20602f2d7f720186dfd906e82b4982e1"
-        }
-      ]
-    },
-    {
       "name": "python3-pyicu",
       "buildsystem": "simple",
       "build-commands": [
@@ -259,20 +240,6 @@
           "type": "file",
           "url": "https://files.pythonhosted.org/packages/f9/02/2f110bffcff77a8ece45f780bc0005d54036a0812c924d2ecb0332e2eaea/pyglossary-5.2.1-py3-none-any.whl",
           "sha256": "b9d871cf4fba3177afcea1d68cbbcc3fd9f5b779e440b9e80d66bd616fd26f45"
-        }
-      ]
-    },
-    {
-      "name": "python3-pygments",
-      "buildsystem": "simple",
-      "build-commands": [
-        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --target=${FLATPAK_DEST}/lib/python$(python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:2])))')/site-packages \"pygments\" --no-build-isolation"
-      ],
-      "sources": [
-        {
-          "type": "file",
-          "url": "https://files.pythonhosted.org/packages/c7/21/705964c7812476f378728bdf590ca4b771ec72385c533964653c68e86bdc/pygments-2.19.2-py3-none-any.whl",
-          "sha256": "86540386c03d588bb81d44bc3928634ff26449851e99741617ecb9037ee5ec0b"
         }
       ]
     },
