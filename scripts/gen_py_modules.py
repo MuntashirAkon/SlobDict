@@ -189,10 +189,39 @@ def patch_lxml_build_command(json_file: str) -> bool:
         print(f"Error patching JSON: {e}")
         return False
 
+
+def configure_libzim_system_dependency(json_file: str) -> bool:
+    """Build python-libzim against the libzim module already installed in /app."""
+    try:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+
+        for module in data.get('modules', []):
+            if module.get('name') != 'python3-libzim':
+                continue
+            env = module.setdefault('build-options', {}).setdefault('env', {})
+            env.update({
+                'USE_SYSTEM_LIBZIM': '1',
+                'CPATH': '/app/include',
+                'LIBRARY_PATH': '/app/lib',
+                'LD_LIBRARY_PATH': '/app/lib',
+                'LDFLAGS': '-L/app/lib',
+            })
+            with open(json_file, 'w') as f:
+                json.dump(data, f, indent=2)
+            print(f"✓ Configured {module['name']} to use the system libzim")
+            return True
+
+        print("Warning: Could not find 'python3-libzim' module in JSON")
+        return False
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error configuring system libzim: {e}")
+        return False
+
 def main():
     """Main entry point."""
     # Default files
-    manifest_file = APP_DIR / "dev.muntashir.SlobDictGTK.yaml"
+    manifest_file = REPO_DIR / "dev.muntashir.SlobDictGTK.yaml"
     requirements_files = [APP_DIR / "requirements.txt", APP_DIR / "pyglossary-plugins.txt"]
     output_json = APP_DIR / "python3-modules.json"
     
@@ -229,6 +258,10 @@ def main():
     if not patch_lxml_build_command(str(output_json)):
         print("Warning: Could not patch lxml build command (non-fatal)")
         # Don't exit on this - it's a "nice to have" patch
+
+    if not configure_libzim_system_dependency(str(output_json)):
+        print("Failed to configure python-libzim to use the system libzim")
+        return 1
     
     print(f"\n✓ Done! Generated {output_json}")
     

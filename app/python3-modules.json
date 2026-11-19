@@ -96,6 +96,15 @@
     {
       "name": "python3-libzim",
       "buildsystem": "simple",
+      "build-options": {
+        "env": {
+          "USE_SYSTEM_LIBZIM": "1",
+          "CPATH": "/app/include",
+          "LIBRARY_PATH": "/app/lib",
+          "LD_LIBRARY_PATH": "/app/lib",
+          "LDFLAGS": "-L/app/lib"
+        }
+      },
       "build-commands": [
         "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --prefix=${FLATPAK_DEST} \"libzim\" --no-build-isolation"
       ],

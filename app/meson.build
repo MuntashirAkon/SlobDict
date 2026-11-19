@@ -8,6 +8,10 @@ project(
 APPLICATION_ID = 'dev.muntashir.SlobDictGTK'
 APPLICATION_ROOT = '/dev/muntashir/SlobDictGTK'
 
+install_data('COPYING',
+  install_dir: join_paths(get_option('datadir'), 'licenses', APPLICATION_ID)
+)
+
 # Import modules
 gnome = import('gnome')
 i18n = import('i18n')
