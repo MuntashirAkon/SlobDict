@@ -2,7 +2,7 @@
 
 Slob Dictionary is an application with a polished GTK 4 interface for exploring slob-formatted dictionaries on Linux, converting when necessary.
 
-![Lookup Interface](./data/screenshots/lookup-ui.png)
+![Lookup Interface](./app/data/screenshots/lookup-ui.png)
 
 ## Key Features
 

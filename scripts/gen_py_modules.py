@@ -14,6 +14,9 @@ import re
 from pathlib import Path
 from typing import Optional, List
 
+REPO_DIR = Path(__file__).resolve().parent.parent
+APP_DIR = REPO_DIR / "app"
+
 
 def extract_sdk_version(yaml_file: str) -> Optional[str]:
     """
@@ -101,7 +104,7 @@ def generate_python_modules(sdk_version: str, dependencies: List[str], output_fi
     """
     cmd = [
         "python3",
-        "flatpak-pip-generator.py",
+        str(REPO_DIR / "flatpak-pip-generator.py"),
         f"--runtime=org.gnome.Sdk//{sdk_version}",
         "--output", output_file,
     ] + dependencies
@@ -189,15 +192,15 @@ def patch_lxml_build_command(json_file: str) -> bool:
 def main():
     """Main entry point."""
     # Default files
-    manifest_file = "dev.muntashir.SlobDictGTK.yaml"
-    requirements_files = ["requirements.txt", "pyglossary-plugins.txt"]
-    output_json = "python3-modules.json"
+    manifest_file = APP_DIR / "dev.muntashir.SlobDictGTK.yaml"
+    requirements_files = [APP_DIR / "requirements.txt", APP_DIR / "pyglossary-plugins.txt"]
+    output_json = APP_DIR / "python3-modules.json"
     
     # Allow custom manifest via CLI argument
     if len(sys.argv) > 1:
-        manifest_file = sys.argv[1]
+        manifest_file = Path(sys.argv[1]).resolve()
     if len(sys.argv) > 2:
-        requirements_files = sys.argv[2:]
+        requirements_files = [Path(path).resolve() for path in sys.argv[2:]]
     
     print(f"Reading Flatpak manifest: {manifest_file}")
     print(f"Reading dependencies from: {', '.join(requirements_files)}\n")
@@ -217,13 +220,13 @@ def main():
         return 1
     
     # Step 3: Generate python3-modules.json
-    if not generate_python_modules(sdk_version, dependencies, output_json):
+    if not generate_python_modules(sdk_version, dependencies, str(output_json)):
         print("Failed to generate python3-modules.json. Exiting.")
         return 1
     
     # Step 4: Patch lxml build command
     print("\nPatching generated JSON...")
-    if not patch_lxml_build_command(output_json):
+    if not patch_lxml_build_command(str(output_json)):
         print("Warning: Could not patch lxml build command (non-fatal)")
         # Don't exit on this - it's a "nice to have" patch
     

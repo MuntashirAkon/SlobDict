@@ -45,27 +45,27 @@
     <translation type="gettext">@APP_NAME@</translation>
     <screenshots>
         <screenshot type="default">
-            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/data/screenshots/lookup-ui.png</image>
+            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/app/data/screenshots/lookup-ui.png</image>
             <caption>Dictionary lookup interface with search results</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/data/screenshots/history-ui.png</image>
+            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/app/data/screenshots/history-ui.png</image>
             <caption>Lookup history to revisit previous searches</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/data/screenshots/bookmarks-ui.png</image>
+            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/app/data/screenshots/bookmarks-ui.png</image>
             <caption>Bookmark favorite definitions and terms</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/data/screenshots/dictionaries-manager.png</image>
+            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/app/data/screenshots/dictionaries-manager.png</image>
             <caption>Manage multiple dictionary files</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/data/screenshots/preferences-ui.png</image>
+            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/app/data/screenshots/preferences-ui.png</image>
             <caption>Preferences and configuration options</caption>
         </screenshot>
         <screenshot>
-            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/data/screenshots/shortcuts-ui.png</image>
+            <image>https://raw.githubusercontent.com/MuntashirAkon/SlobDict/master/app/data/screenshots/shortcuts-ui.png</image>
             <caption>Supported keyboard shortcuts</caption>
         </screenshot>
     </screenshots>
