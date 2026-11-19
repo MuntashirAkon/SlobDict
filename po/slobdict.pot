@@ -8,7 +8,7 @@ msgid ""
 msgstr ""
 "Project-Id-Version: slobdict\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2026-03-19 18:00-0700\n"
+"POT-Creation-Date: 2026-11-19 05:20-0800\n"
 "PO-Revision-Date: YEAR-MO-DA HO:MI+ZONE\n"
 "Last-Translator: FULL NAME <EMAIL@ADDRESS>\n"
 "Language-Team: LANGUAGE <LL@li.org>\n"
@@ -75,7 +75,7 @@ msgstr ""
 
 #. Title (center)
 #: slobdict/ui/dictionaries_dialog.py:23 slobdict/ui/dictionaries_dialog.py:45
-#: slobdict/ui/main_window.py:239
+#: slobdict/ui/main_window.py:240
 msgid "Dictionaries"
 msgstr ""
 
@@ -244,62 +244,62 @@ msgstr ""
 msgid "Error"
 msgstr ""
 
-#: slobdict/ui/main_window.py:215
+#: slobdict/ui/main_window.py:216
 #, python-format
 msgid "WebKit unavailable: %s"
 msgstr ""
 
-#: slobdict/ui/main_window.py:232 slobdict/ui/main_window.py:275
-#: slobdict/ui/main_window.py:335 data/ui/window.blp:56
+#: slobdict/ui/main_window.py:233 slobdict/ui/main_window.py:276
+#: slobdict/ui/main_window.py:336 data/ui/window.blp:61
 msgid "Lookup"
 msgstr ""
 
-#: slobdict/ui/main_window.py:233 slobdict/ui/main_window.py:277
+#: slobdict/ui/main_window.py:234 slobdict/ui/main_window.py:278
 #: slobdict/ui/preferences_dialog.py:115
 msgid "Bookmarks"
 msgstr ""
 
-#: slobdict/ui/main_window.py:234 slobdict/ui/main_window.py:279
+#: slobdict/ui/main_window.py:235 slobdict/ui/main_window.py:280
 #: slobdict/ui/preferences_dialog.py:95
 msgid "History"
 msgstr ""
 
-#: slobdict/ui/main_window.py:240 slobdict/ui/preferences_dialog.py:26
+#: slobdict/ui/main_window.py:241 slobdict/ui/preferences_dialog.py:26
 #: slobdict/ui/preferences_dialog.py:34
 msgid "Preferences"
 msgstr ""
 
-#: slobdict/ui/main_window.py:241
+#: slobdict/ui/main_window.py:242
 msgid "Keyboard Shortcuts"
 msgstr ""
 
-#: slobdict/ui/main_window.py:242
+#: slobdict/ui/main_window.py:243
 #, python-format
 msgid "About %s"
 msgstr ""
 
-#: slobdict/ui/main_window.py:247
+#: slobdict/ui/main_window.py:248
 msgid "Quit"
 msgstr ""
 
-#: slobdict/ui/main_window.py:344
+#: slobdict/ui/main_window.py:345
 msgid "Open Link"
 msgstr ""
 
-#: slobdict/ui/main_window.py:654
+#: slobdict/ui/main_window.py:655
 msgid "No bookmarks"
 msgstr ""
 
-#: slobdict/ui/main_window.py:729
+#: slobdict/ui/main_window.py:730
 msgid "No history"
 msgstr ""
 
 #. Reuse history_search_entry for bookmarks filtering
-#: slobdict/ui/main_window.py:857
+#: slobdict/ui/main_window.py:859
 msgid "Filter bookmarks..."
 msgstr ""
 
-#: slobdict/ui/main_window.py:867 data/ui/window.blp:86
+#: slobdict/ui/main_window.py:869 data/ui/window.blp:91
 msgid "Filter history..."
 msgstr ""
 
@@ -335,7 +335,7 @@ msgstr ""
 msgid "Apply dark mode to web content"
 msgstr ""
 
-#: slobdict/ui/preferences_dialog.py:72
+#: slobdict/ui/preferences_dialog.py:72 data/ui/window.blp:112
 msgid "Content"
 msgstr ""
 
@@ -548,42 +548,46 @@ msgstr ""
 msgid "Print"
 msgstr ""
 
-#: data/ui/window.blp:77
+#: data/ui/window.blp:52
+msgid "Sidebar"
+msgstr ""
+
+#: data/ui/window.blp:82
 msgid "Lookup..."
 msgstr ""
 
-#: data/ui/window.blp:118
+#: data/ui/window.blp:127
 msgid "Previous"
 msgstr ""
 
-#: data/ui/window.blp:125
+#: data/ui/window.blp:134
 msgid "Next"
 msgstr ""
 
-#: data/ui/window.blp:132
+#: data/ui/window.blp:141
 msgid "Find in page"
 msgstr ""
 
-#: data/ui/window.blp:144
+#: data/ui/window.blp:153
 msgid "Bookmark"
 msgstr ""
 
-#: data/ui/window.blp:151
+#: data/ui/window.blp:160
 msgid "More options"
 msgstr ""
 
-#: data/ui/window.blp:174
+#: data/ui/window.blp:183
 msgid "Find in page..."
 msgstr ""
 
-#: data/ui/window.blp:180
+#: data/ui/window.blp:189
 msgid "Previous match"
 msgstr ""
 
-#: data/ui/window.blp:186
+#: data/ui/window.blp:195
 msgid "Next match"
 msgstr ""
 
-#: data/ui/window.blp:192
+#: data/ui/window.blp:201
 msgid "Close find in page toolbar"
 msgstr ""
