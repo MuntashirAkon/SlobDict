@@ -111,7 +111,7 @@
       "name": "python3-lxml",
       "buildsystem": "simple",
       "build-commands": [
-        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --target=${FLATPAK_DEST}/lib/python3.13/site-packages \"lxml\" --no-build-isolation"
+        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --target=${FLATPAK_DEST}/lib/python$(python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:2])))')/site-packages \"lxml\" --no-build-isolation"
       ],
       "sources": [
         {
@@ -266,7 +266,7 @@
       "name": "python3-pygments",
       "buildsystem": "simple",
       "build-commands": [
-        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --target=${FLATPAK_DEST}/lib/python3.13/site-packages \"pygments\" --no-build-isolation"
+        "pip3 install --verbose --exists-action=i --no-index --find-links=\"file://${PWD}\" --target=${FLATPAK_DEST}/lib/python$(python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:2])))')/site-packages \"pygments\" --no-build-isolation"
       ],
       "sources": [
         {

@@ -287,4 +287,4 @@ def html_to_markdown(html_str: str) -> str:
     Convert HTML to markdown
     """
     from markdownify import markdownify as md
-    return md(transform_css_to_semantic_html(html_str))
+    return str(md(transform_css_to_semantic_html(html_str)))

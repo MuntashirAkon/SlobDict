@@ -152,10 +152,10 @@ def patch_lxml_build_command(json_file: str) -> bool:
                 new_commands = []
                 for cmd in build_commands:
                     if 'pip3 install' in cmd and 'lxml' in cmd:
-                        # Replace --prefix=${FLATPAK_DEST} with --target
+                        # Use the Python version from the SDK running the build.
                         cmd = cmd.replace(
                             '--prefix=${FLATPAK_DEST}',
-                            '--target=${FLATPAK_DEST}/lib/python3.13/site-packages'
+                            "--target=${FLATPAK_DEST}/lib/python$(python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:2])))')/site-packages"
                         )
                         print(f"Patched lxml build-command:")
                         print(f"  {cmd}")
@@ -214,10 +214,10 @@ def patch_pygments_build_command(json_file: str) -> bool:
                 new_commands = []
                 for cmd in build_commands:
                     if 'pip3 install' in cmd and 'pygments' in cmd:
-                        # Replace --prefix=${FLATPAK_DEST} with --target
+                        # Use the Python version from the SDK running the build.
                         cmd = cmd.replace(
                             '--prefix=${FLATPAK_DEST}',
-                            '--target=${FLATPAK_DEST}/lib/python3.13/site-packages'
+                            "--target=${FLATPAK_DEST}/lib/python$(python3 -c 'import sys; print(\".\".join(map(str, sys.version_info[:2])))')/site-packages"
                         )
                         print(f"Patched pygments build-command:")
                         print(f"  {cmd}")
