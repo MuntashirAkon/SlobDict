@@ -218,6 +218,32 @@ def configure_libzim_system_dependency(json_file: str) -> bool:
         print(f"Error configuring system libzim: {e}")
         return False
 
+
+def validate_architecture_neutral_sources(json_file: str) -> bool:
+    """Reject platform-specific Python wheels so the generated modules build on ARM64."""
+    try:
+        with open(json_file, 'r') as f:
+            data = json.load(f)
+
+        incompatible = []
+        for module in data.get('modules', []):
+            for source in module.get('sources', []):
+                url = source.get('url', '')
+                filename = url.rsplit('/', 1)[-1].split('?', 1)[0]
+                if filename.endswith('.whl') and not filename.endswith('-none-any.whl'):
+                    incompatible.append(f"{module.get('name')}: {filename}")
+
+        if incompatible:
+            print("Error: Python wheels must be architecture-neutral for x86_64/aarch64 builds:")
+            for filename in incompatible:
+                print(f"  - {filename}")
+            return False
+        print(f"✓ All Python wheel sources in {json_file} are architecture-neutral")
+        return True
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error validating architecture-neutral sources: {e}")
+        return False
+
 def main():
     """Main entry point."""
     # Default files
@@ -261,6 +287,10 @@ def main():
 
     if not configure_libzim_system_dependency(str(output_json)):
         print("Failed to configure python-libzim to use the system libzim")
+        return 1
+
+    if not validate_architecture_neutral_sources(str(output_json)):
+        print("Generated Python modules are not architecture-neutral. Exiting.")
         return 1
     
     print(f"\n✓ Done! Generated {output_json}")
