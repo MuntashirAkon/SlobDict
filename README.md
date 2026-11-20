@@ -45,7 +45,15 @@ There is a separate GNOME extension that allows you to lookup any selected text 
 
 ### Permissions Used
 
-The application requires network access for loading remote contents, but it is disabled by default for privacy.
+The Flatpak manifest requests the following permissions:
+
+| Permission | Purpose |
+| --- | --- |
+| `--share=network` | Allows WebKitGTK to fetch images and other remote resources embedded in dictionary entries. Remote content loading is disabled in Slob Dictionary by default and can be enabled in Preferences (or for an individual entry when prompted). |
+| `--share=ipc` | Shares the host IPC namespace. This is used with the X11 fallback for compatibility with X11 shared-memory graphics facilities. |
+| `--socket=fallback-x11` | Allows display through X11 on systems without a Wayland socket; Flatpak only exposes this socket when Wayland is unavailable. |
+| `--socket=wayland` | Allows the app to connect to the Wayland compositor for its graphical interface. |
+| `--device=dri` | Allows access to graphics render devices for GPU-accelerated rendering, including dictionary content displayed by WebKitGTK. |
 
 ## Building
 
