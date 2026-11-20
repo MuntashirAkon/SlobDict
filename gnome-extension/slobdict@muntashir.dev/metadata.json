@@ -1,10 +1,14 @@
 {
     "uuid": "slobdict@muntashir.dev",
     "name": "Slob Dictionary Quick Lookup",
-    "description": "An extension to make it easy to view defintions from Slob Dictionary by selecting any texts.",
+    "description": "Look up selected text in Slob Dictionary using a four-finger touchpad gesture or a keyboard shortcut. Reads the primary selection from the clipboard when you trigger a lookup.",
     "version": 1,
     "shell-version": [
-        "45", "46", "47", "48", "49"
+        "45", "46", "47", "48", "49", "50", "51"
     ],
-    "url": "https://github.com/MuntashirAkon/SlobDict"
+    "url": "https://github.com/MuntashirAkon/SlobDict",
+    "settings-schema": "org.gnome.shell.extensions.slobdict",
+    "donations": {
+        "github": "MuntashirAkon"
+    }
 }

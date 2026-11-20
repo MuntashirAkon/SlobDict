@@ -9,7 +9,7 @@ import * as Main from 'resource:///org/gnome/shell/ui/main.js';
 export default class SlobDictExtension extends Extension {
     enable() {
         // Setup the Keyboard Shortcut
-        this._settings = this.getSettings('org.gnome.shell.extensions.slobdict');
+        this._settings = this.getSettings();
         Main.wm.addKeybinding(
             'lookup-shortcut',
             this._settings,
@@ -19,9 +19,10 @@ export default class SlobDictExtension extends Extension {
         );
 
         // Setup the Trackpad Gesture
-        this._capturedEventId = global.stage.connect(
+        global.stage.connectObject(
             'captured-event',
-            this._onCapturedEvent.bind(this)
+            this._onCapturedEvent.bind(this),
+            this
         );
     }
 
@@ -31,10 +32,7 @@ export default class SlobDictExtension extends Extension {
         this._settings = null;
 
         // Clean up Trackpad Gesture
-        if (this._capturedEventId) {
-            global.stage.disconnect(this._capturedEventId);
-            this._capturedEventId = null;
-        }
+        global.stage.disconnectObject(this);
     }
 
     _onCapturedEvent(actor, event) {

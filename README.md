@@ -41,7 +41,7 @@ Run `slobdict -h` or `flatpak run dev.muntashir.SlobDictGTK -h` for help.
 
 ### GNOME Extension
 
-There is a separate GNOME extension that allows you to lookup any selected text by pressing <kbd>Super</kbd> + <kbd>D</kbd> or 4-finger gesture from any place. Wayland users must log out and log back in after installing or upating the extension.
+There is a separate GNOME extension that looks up the primary selection using a four-finger touchpad gesture or a keyboard shortcut you configure. The extension reads the primary selection when you trigger a lookup. Wayland users must log out and log back in after installing or updating the extension.
 
 ### Permissions Used
 
