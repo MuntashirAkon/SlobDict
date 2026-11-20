@@ -99,11 +99,14 @@ class DictionariesDialog(Adw.Window):
         
         # Left side: name and info
         left_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        left_box.set_hexpand(True)
         
         # Name
         name_label = Gtk.Label(label=dict_info['label'])
         name_label.set_css_classes(["heading"])
         name_label.set_halign(Gtk.Align.START)
+        name_label.set_hexpand(True)
+        name_label.set_ellipsize(Gtk.EllipsizeMode.END)
         left_box.append(name_label)
         
         # Item count
