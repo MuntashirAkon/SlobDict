@@ -2,5 +2,5 @@
 set -e
 
 rm -rf build
-flatpak-builder --user --install build/ dev.muntashir.SlobDictGTK.yaml
+flatpak-builder --user --install build/ dev.muntashir.SlobDictGTK.local.yaml
 flatpak run dev.muntashir.SlobDictGTK
