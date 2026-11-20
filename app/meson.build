@@ -12,6 +12,19 @@ install_data('COPYING',
   install_dir: join_paths(get_option('datadir'), 'licenses', APPLICATION_ID)
 )
 
+install_data('licenses/python/colorize-pinyin/WTFPL.txt',
+  install_dir: join_paths(get_option('datadir'), 'licenses', APPLICATION_ID, 'colorize-pinyin')
+)
+install_data('licenses/python/pymorphy3-dicts-ru/MIT.txt',
+  install_dir: join_paths(get_option('datadir'), 'licenses', APPLICATION_ID, 'pymorphy3-dicts-ru')
+)
+install_data('licenses/python/pymorphy3-dicts-ru/CC-BY-SA-3.0.html',
+  install_dir: join_paths(get_option('datadir'), 'licenses', APPLICATION_ID, 'pymorphy3-dicts-ru')
+)
+install_data('licenses/python/webencodings/BSD-3-Clause.txt',
+  install_dir: join_paths(get_option('datadir'), 'licenses', APPLICATION_ID, 'webencodings')
+)
+
 # Import modules
 gnome = import('gnome')
 i18n = import('i18n')
