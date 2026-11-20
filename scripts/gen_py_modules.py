@@ -75,10 +75,10 @@ def load_dependencies_from_requirements(requirements_files: List[str]) -> List[s
                     seen.add(normalized)
         
         if not dependencies:
-            print(f"Warning: No dependencies found in {', '.join(requirements_files)}")
+            print(f"Warning: No dependencies found in {', '.join(map(str, requirements_files))}")
             return []
         
-        print(f"✓ Loaded {len(dependencies)} dependencies from {', '.join(requirements_files)}")
+        print(f"✓ Loaded {len(dependencies)} dependencies from {', '.join(map(str, requirements_files))}")
         print(f"  Dependencies: {', '.join(dependencies)}")
         return dependencies
     
@@ -232,7 +232,7 @@ def main():
         requirements_files = [Path(path).resolve() for path in sys.argv[2:]]
     
     print(f"Reading Flatpak manifest: {manifest_file}")
-    print(f"Reading dependencies from: {', '.join(requirements_files)}\n")
+    print(f"Reading dependencies from: {', '.join(map(str, requirements_files))}\n")
     
     # Step 1: Extract SDK version
     sdk_version = extract_sdk_version(manifest_file)

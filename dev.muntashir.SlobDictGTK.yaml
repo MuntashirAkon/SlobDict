@@ -28,8 +28,8 @@ modules:
       - /lib/pkgconfig
     sources:
       - type: archive
-        url: https://github.com/unicode-org/icu/releases/download/release-78.1/icu4c-78.1-sources.tgz
-        sha256: 6217f58ca39b23127605cfc6c7e0d3475fe4b0d63157011383d716cb41617886
+        url: https://github.com/unicode-org/icu/releases/download/release-79.1/icu4c-79.1-sources.tgz
+        sha256: 06fa63ecb521048f8082f12ad988f6b678d90cbd88aafce24cbc94902b191d99
     subdir: source
 
   - name: lzo
@@ -58,8 +58,8 @@ modules:
       - --disable-documentation
     sources:
       - type: archive
-        sha256: bcbc99cfbf16080119c2571fc296794f539bd542ca3926f17c2999600830ab61
-        url: https://oligarchy.co.uk/xapian/1.4.27/xapian-core-1.4.27.tar.xz
+        sha256: c4fd64e81127311756adf5579268d14a79f285ce8ac4ead0930c96195897aece
+        url: https://oligarchy.co.uk/xapian/1.4.32/xapian-core-1.4.32.tar.xz
         x-checker-data:
           type: anitya
           project-id: 15919
@@ -81,8 +81,8 @@ modules:
     sources:
       - type: git
         url: https://github.com/openzim/libzim.git
-        tag: 9.4.0
-        commit: 8ef511ba0de6a8180d79fbc3c7edcfec4202ae5e
+        tag: 9.8.2
+        commit: 26ec526f74e8342a40da5ab14e364546988e0e1a
         x-checker-data:
           type: anitya
           project-id: 20193
@@ -102,8 +102,8 @@ modules:
     sources:
       - type: git
         url: https://gitlab.gnome.org/jwestman/blueprint-compiler
-        tag: v0.16.0
-        commit: 04ef0944db56ab01307a29aaa7303df6067cb3c0
+        tag: v0.22.2
+        commit: ed35ac74de0c1bb1f5e852410b97edd1f08904c9
 
   - name: dev.muntashir.SlobDictGTK
     builddir: true
