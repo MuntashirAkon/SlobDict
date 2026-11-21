@@ -11,7 +11,7 @@ Slob Dictionary is an application with a polished GTK 4 interface for exploring 
 - Lookup directly from GNOME Activities (see below)
 - Lookup using URI (see below)
 - Lookup from CLI (see below)
-- Lookup by pressing <kbd>Super</kbd> + <kbd>D</kbd> or 4-finger gesture from any place through GNOME extension
+- Lookup selected text using a four-finger touchpad gesture or a configured keyboard shortcut through the GNOME extension
 - Bookmarks for saving favorite definitions and terms
 - Zoom in/out/reset, find in page, print features
 - Native light/dark mode following your GNOME desktop theme

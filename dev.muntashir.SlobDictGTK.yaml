@@ -114,7 +114,7 @@ modules:
     sources:
       - type: git
         url: https://github.com/MuntashirAkon/SlobDict.git
-        commit: 528ea4470da66acc41998c2febe7a60f46626e66
+        tag: 1.3.0
     post-install:
       - chmod +x /app/bin/slobdict
       - |

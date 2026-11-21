@@ -70,6 +70,15 @@
         </screenshot>
     </screenshots>
     <releases>
+        <release version="1.3.0" date="2026-11-20">
+            <description translatable="no">
+                <ul>
+                    <li>Improve the layout on narrow windows and small screens.</li>
+                    <li>Update the GNOME Shell extension for GNOME 50 and 51 and clarify its clipboard use.</li>
+                    <li>Update Flatpak build dependencies and prepare the package for Flathub.</li>
+                </ul>
+            </description>
+        </release>
         <release version="1.2.0" date="2026-03-20">
             <description translatable="no">
                 <p>Add a GNOME Shell extension for looking up selected text with Super + D or a four-finger touchpad gesture.</p>
