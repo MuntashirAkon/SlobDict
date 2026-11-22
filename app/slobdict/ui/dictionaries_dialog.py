@@ -3,8 +3,9 @@
 import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
+gi.require_version("Pango", "1.0")
 
-from gi.repository import Gtk, Adw, Gio, GLib
+from gi.repository import Gtk, Adw, Gio, GLib, Pango
 from typing import Dict, Any, Optional
 import threading
 from ..backend.slob_client import SlobClient
@@ -106,7 +107,7 @@ class DictionariesDialog(Adw.Window):
         name_label.set_css_classes(["heading"])
         name_label.set_halign(Gtk.Align.START)
         name_label.set_hexpand(True)
-        name_label.set_ellipsize(Gtk.EllipsizeMode.END)
+        name_label.set_ellipsize(Pango.EllipsizeMode.END)
         left_box.append(name_label)
         
         # Item count

@@ -4,9 +4,10 @@ import gi
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
 gi.require_version("WebKit", "6.0")
+gi.require_version("Pango", "1.0")
 import logging
 
-from gi.repository import Gtk, Adw, WebKit, Gio, GLib, Gdk
+from gi.repository import Gtk, Adw, WebKit, Gio, GLib, Gdk, Pango
 from pathlib import Path
 from typing import List, Dict, Optional
 from concurrent.futures import ThreadPoolExecutor, Future
@@ -597,13 +598,13 @@ class MainWindow(Adw.ApplicationWindow):
             box.set_spacing(4)
 
             title_label = Gtk.Label(label=result.term)
-            title_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
+            title_label.set_ellipsize(Pango.EllipsizeMode.END)
             title_label.set_halign(Gtk.Align.START)
             box.append(title_label)
 
             source_label = Gtk.Label(label=result.dict_name)
             source_label.set_css_classes(["dim-label"])
-            source_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
+            source_label.set_ellipsize(Pango.EllipsizeMode.END)
             source_label.set_halign(Gtk.Align.START)
             box.append(source_label)
 
@@ -673,7 +674,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             # Title
             title_label = Gtk.Label(label=bookmark_item.term)
-            title_label.set_ellipsize(3)
+            title_label.set_ellipsize(Pango.EllipsizeMode.END)
             title_label.set_halign(Gtk.Align.START)
             box.append(title_label)
 
@@ -683,7 +684,7 @@ class MainWindow(Adw.ApplicationWindow):
             
             source_label = Gtk.Label(label=bookmark_item.dict_name)
             source_label.set_css_classes(["dim-label"])
-            source_label.set_ellipsize(3)
+            source_label.set_ellipsize(Pango.EllipsizeMode.END)
             source_label.set_halign(Gtk.Align.START)
             info_box.append(source_label)
 
@@ -691,7 +692,7 @@ class MainWindow(Adw.ApplicationWindow):
                 label=bookmark_item.created_at_formatted()
             )
             date_label.set_css_classes(["dim-label"])
-            date_label.set_ellipsize(3)
+            date_label.set_ellipsize(Pango.EllipsizeMode.END)
             date_label.set_halign(Gtk.Align.START)
             date_label.set_hexpand(True)
             info_box.append(date_label)
@@ -748,7 +749,7 @@ class MainWindow(Adw.ApplicationWindow):
 
             # Title
             title_label = Gtk.Label(label=history_item.term)
-            title_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
+            title_label.set_ellipsize(Pango.EllipsizeMode.END)
             title_label.set_halign(Gtk.Align.START)
             box.append(title_label)
 
@@ -758,7 +759,7 @@ class MainWindow(Adw.ApplicationWindow):
             
             source_label = Gtk.Label(label=history_item.dict_name)
             source_label.set_css_classes(["dim-label"])
-            source_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
+            source_label.set_ellipsize(Pango.EllipsizeMode.END)
             source_label.set_halign(Gtk.Align.START)
             info_box.append(source_label)
 
@@ -766,7 +767,7 @@ class MainWindow(Adw.ApplicationWindow):
                 label=history_item.created_at_formatted()
             )
             date_label.set_css_classes(["dim-label"])
-            date_label.set_ellipsize(3)  # Gtk.EllipsizeMode.END
+            date_label.set_ellipsize(Pango.EllipsizeMode.END)
             date_label.set_halign(Gtk.Align.START)
             date_label.set_hexpand(True)
             info_box.append(date_label)
