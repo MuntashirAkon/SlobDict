@@ -281,7 +281,7 @@ class SlobDictApplication(Adw.Application):
         about.set_developer_name("Muntashir Al-Islam")
         about.set_developers(["Muntashir Al-Islam"])
         about.set_designers(["Muntashir Al-Islam"])
-        about.set_copyright("© 2025 Muntashir Al-Islam")
+        about.set_copyright("© 2026 Muntashir Al-Islam")
         about.set_license_type(Gtk.License.AGPL_3_0)
         about.set_website("https://github.com/MuntashirAkon/SlobDict")
         about.set_issue_url("https://github.com/MuntashirAkon/SlobDict/issues")
