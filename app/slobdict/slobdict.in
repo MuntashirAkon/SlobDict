@@ -7,21 +7,37 @@ import signal
 import locale
 import shutil
 import gettext
+import glob
 
 is_local = "@local_build@" == "True"
 pkgdatadir = "@PKGDATA_DIR@"
 localedir = "@LOCALE_DIR@"
 
-sys.dont_write_bytecode = True
+# Resolve the bundled locale directory before gettext caches its translation
+# function and locale.bindtextdomain is configured.
+if 'APPDIR' in os.environ:
+    appdir = os.environ['APPDIR']
+    pkgdatadir = os.path.join(appdir, pkgdatadir.lstrip('/'))
+    localedir = os.path.join(appdir, localedir.lstrip('/'))
 
-signal.signal(signal.SIGINT, signal.SIG_DFL)
 gettext.install("@APP_NAME@", localedir)
-
 locale.bindtextdomain("@APP_NAME@", localedir)
 locale.textdomain("@APP_NAME@")
 
+sys.dont_write_bytecode = True
+
+signal.signal(signal.SIGINT, signal.SIG_DFL)
+
 
 if __name__ == "__main__":
+    # The AppImage launcher selects its bundled Python and configures GTK.
+    # Meson installs this pure-Python package under /usr/lib/python3.*.
+    if 'APPDIR' in os.environ:
+        appdir = os.environ['APPDIR']
+        site_packages = glob.glob(os.path.join(appdir, 'usr', 'lib', 'python3.*', 'site-packages'))
+        if site_packages:
+            sys.path.insert(1, site_packages[0])
+
     if is_local:
         # In the local use case, use @APP_NAME@ module from the sourcetree
         sys.path.insert(1, "@PYTHON@")
