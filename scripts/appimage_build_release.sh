@@ -1,5 +1,6 @@
 #!/bin/bash
-set -e
+set -Ee
+trap 'status=$?; printf "ERROR: build command failed at line %s (exit %s): %s\n" "$LINENO" "$status" "$BASH_COMMAND" >&2; exit "$status"' ERR
 
 # Setup Directories & Environment
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -153,6 +154,56 @@ export CONDA_CHANNEL_PRIORITY=strict
 export CONDA_PACKAGES="glib;gtk4;pygobject;pyicu"
 export CONDA_PLUGINS_AUTO_ACCEPT_TOS=true
 
+# WebKitGTK is not available from the Conda packages used above. Bundle the
+# host's WebKitGTK runtime, its subprocesses, and introspection data so the
+# AppImage does not accidentally pick up a host typelib without its library.
+echo "Staging WebKitGTK runtime..."
+WEBKIT_LIB_DIR="$APPDIR/usr/lib"
+WEBKIT_TYPELIB_STAGING_DIR="$SOURCE_DIR/webkit/girepository-1.0"
+WEBKIT_PROCESS_DIR="$APPDIR/usr/libexec/webkitgtk-6.0"
+WEBKIT_BUNDLE_DIR="$APPDIR/usr/lib/webkitgtk-6.0/injected-bundle"
+mkdir -p "$WEBKIT_LIB_DIR" "$WEBKIT_TYPELIB_STAGING_DIR" "$WEBKIT_PROCESS_DIR" "$WEBKIT_BUNDLE_DIR"
+
+for webkit_library in libwebkitgtk-6.0.so.4 libjavascriptcoregtk-6.0.so.1; do
+  webkit_library_path="$(ldconfig -p | awk -v name="$webkit_library" '$1 == name { print $NF; exit }')"
+  if [ -z "$webkit_library_path" ]; then
+    echo "Required WebKitGTK library $webkit_library was not found on the build host." >&2
+    exit 1
+  fi
+  cp -L "$webkit_library_path" "$WEBKIT_LIB_DIR/$webkit_library"
+done
+
+for typelib in WebKit-6.0.typelib JavaScriptCore-6.0.typelib; do
+  typelib_path="$(find /usr/lib /usr/lib64 -path "*/girepository-1.0/$typelib" -print -quit 2>/dev/null || true)"
+  if [ -z "$typelib_path" ]; then
+    echo "Required WebKitGTK typelib $typelib was not found. Install the WebKitGTK 6.0 introspection package on the build host." >&2
+    exit 1
+  fi
+  cp "$typelib_path" "$WEBKIT_TYPELIB_STAGING_DIR/$typelib"
+done
+
+webkit_process_source="$(find /usr/libexec /usr/lib /usr/lib64 -path '*/webkitgtk-6.0/WebKitWebProcess' -print -quit 2>/dev/null || true)"
+if [ -z "$webkit_process_source" ]; then
+  echo "Required WebKitGTK subprocesses were not found on the build host." >&2
+  exit 1
+fi
+webkit_process_source_dir="$(dirname "$webkit_process_source")"
+for webkit_process in WebKitGPUProcess WebKitNetworkProcess WebKitWebProcess; do
+  if [ ! -x "$webkit_process_source_dir/$webkit_process" ]; then
+    if [ "$webkit_process" = WebKitGPUProcess ]; then
+      continue
+    fi
+    echo "Required WebKitGTK process $webkit_process was not found on the build host." >&2
+    exit 1
+  fi
+  cp "$webkit_process_source_dir/$webkit_process" "$WEBKIT_PROCESS_DIR/"
+done
+
+webkit_bundle="$(find /usr/lib /usr/lib64 -path '*/webkitgtk-6.0/injected-bundle/libwebkitgtkinjectedbundle.so' -print -quit 2>/dev/null || true)"
+if [ -n "$webkit_bundle" ]; then
+  cp -L "$webkit_bundle" "$WEBKIT_BUNDLE_DIR/libwebkitgtkinjectedbundle.so"
+fi
+
 # slobdict is a python script which LinuxDeploy hates
 # So, use a dummy ELF binary (i.e., true) temporarily
 mv "$APPDIR/usr/bin/slobdict" "$APPDIR/usr/bin/slobdict.py"
@@ -160,13 +211,24 @@ cp $(which true) "$APPDIR/usr/bin/slobdict"
 export NO_STRIP=1
 
 # Deploy the Conda runtime without linuxdeploy's separate GTK runtime.
-LD_LIBRARY_PATH="$APPDIR/usr/lib" ./linuxdeploy-x86_64.AppImage \
+echo "Running linuxdeploy with the Conda plugin..."
+APPIMAGE_EXTRACT_AND_RUN=1 LD_LIBRARY_PATH="$APPDIR/usr/lib" ./linuxdeploy-x86_64.AppImage \
   --appdir="$APPDIR" \
   --executable="$APPDIR/usr/bin/slobdict" \
-  --deploy-deps-only="$APPDIR/usr/lib" \
   --desktop-file="$APPDIR/usr/share/applications/dev.muntashir.SlobDictGTK.desktop" \
   --icon-file="$APPDIR/usr/share/icons/hicolor/scalable/apps/dev.muntashir.SlobDictGTK.svg" \
   --plugin conda
+
+# Resolve WebKitGTK against the bundled Conda GTK/GLib stack after the Conda
+# plugin has populated it, then deploy the remaining WebKit dependencies.
+echo "Deploying WebKitGTK dependencies..."
+APPIMAGE_EXTRACT_AND_RUN=1 LD_LIBRARY_PATH="$APPDIR/usr/conda/lib:$APPDIR/usr/lib" ./linuxdeploy-x86_64.AppImage \
+  --appdir="$APPDIR" \
+  --deploy-deps-only="$APPDIR/usr/lib" \
+  --deploy-deps-only="$WEBKIT_PROCESS_DIR"
+
+mkdir -p "$APPDIR/usr/conda/lib/girepository-1.0"
+cp "$WEBKIT_TYPELIB_STAGING_DIR/"*.typelib "$APPDIR/usr/conda/lib/girepository-1.0/"
 
 # Build libadwaita against the GTK/GLib libraries in the Conda prefix. This
 # avoids mixing Conda's PyGObject with a second GTK stack from linuxdeploy.
@@ -207,6 +269,20 @@ for gtk_tool in gtk4-builder-tool gtk4-demo gtk4-demo-application gtk4-image-too
   rm -f "$APPDIR/usr/conda/bin/$gtk_tool" "$APPDIR/usr/bin/$gtk_tool"
 done
 
+# Conda's fontconfig config records the build-time AppDir and cache paths.
+# Replace those with tokens; AppRun expands them for the mounted AppImage and
+# uses a private cache so it never reuses a cache made by another fontconfig.
+FONTCONFIG_FILE="$APPDIR/usr/conda/etc/fonts/fonts.conf"
+if [ -f "$FONTCONFIG_FILE" ]; then
+  sed -i \
+    -e "s|$APPDIR/usr/conda/var/cache/fontconfig|@FONTCONFIG_CACHE@|g" \
+    -e "s|$APPDIR/usr/conda|@APPDIR@/usr/conda|g" \
+    -e 's|<cachedir prefix="xdg">fontconfig</cachedir>|<cachedir>@FONTCONFIG_CACHE@</cachedir>|' \
+    -e '\|<cachedir>~/.fontconfig</cachedir>|d' \
+    "$FONTCONFIG_FILE"
+fi
+rm -rf "$APPDIR/usr/conda/var/cache/fontconfig"
+
 # Run the bundled GTK/GLib stack without linuxdeploy's separate GTK runtime.
 # linuxdeploy leaves AppRun as a symlink to the selected executable, so remove
 # it before writing the shell wrapper below.
@@ -218,10 +294,21 @@ set -e
 APPDIR="${APPDIR:-$(dirname "$(readlink -f "$0")")}"
 export APPDIR
 export PATH="$APPDIR/usr/bin:$APPDIR/usr/conda/bin:${PATH:-/usr/bin:/bin}"
+export LD_LIBRARY_PATH="$APPDIR/usr/conda/lib:$APPDIR/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export XDG_DATA_DIRS="$APPDIR/usr/conda/share:$APPDIR/usr/share:${XDG_DATA_DIRS:-/usr/local/share:/usr/share}"
 export GSETTINGS_SCHEMA_DIR="$APPDIR/usr/conda/share/glib-2.0/schemas"
 export GTK_DATA_PREFIX="$APPDIR/usr/conda"
 export GTK_EXE_PREFIX="$APPDIR/usr/conda"
+export WEBKIT_EXEC_PATH="$APPDIR/usr/libexec/webkitgtk-6.0"
+export WEBKIT_INJECTED_BUNDLE_PATH="$APPDIR/usr/lib/webkitgtk-6.0/injected-bundle"
+export FONTCONFIG_PATH="$APPDIR/usr/conda/etc/fonts"
+FONTCONFIG_CACHE="${XDG_CACHE_HOME:-${HOME:-/tmp}/.cache}/slobdict-appimage/fontconfig"
+mkdir -p "$FONTCONFIG_CACHE"
+export FONTCONFIG_FILE="${FONTCONFIG_CACHE%/fontconfig}/fonts.conf"
+sed \
+  -e "s|@APPDIR@|$APPDIR|g" \
+  -e "s|@FONTCONFIG_CACHE@|$FONTCONFIG_CACHE|g" \
+  "$FONTCONFIG_PATH/fonts.conf" > "$FONTCONFIG_FILE"
 GI_TYPELIB_PATH="$APPDIR/usr/conda/lib/girepository-1.0"
 for typelib_dir in /usr/lib/girepository-1.0 /usr/lib64/girepository-1.0 /usr/lib/*/girepository-1.0; do
   if [ -d "$typelib_dir" ]; then
