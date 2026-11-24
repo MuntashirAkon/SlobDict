@@ -74,12 +74,15 @@ conf.set('PKGDATA_DIR', PKGDATA_DIR)
 conf.set('APP_ID', APPLICATION_ID)
 conf.set('DATA_DIR', join_paths(get_option('prefix'), get_option('datadir')))
 conf.set('LOCALE_DIR', join_paths(get_option('prefix'), get_option('localedir')))
-conf.set('PYTHON', PY_INSTALLDIR.full_path())
+# The installed launcher never uses the development-only paths below. Keeping
+# them empty also prevents build-machine paths from being embedded in release
+# launchers.
+conf.set('PYTHON', '')
 conf.set('VERSION', meson.project_version() )
 conf.set('BUILD_TYPE', get_option('buildtype'))
 conf.set('SCHEMAS_DIR', PKGDATA_DIR)
-conf.set('SOURCE_DIR', meson.current_source_dir())
-conf.set('BUILD_DIR', meson.current_build_dir())
+conf.set('SOURCE_DIR', '')
+conf.set('BUILD_DIR', '')
 conf.set('local_build', 'False')
 
 # Local install configuration data
