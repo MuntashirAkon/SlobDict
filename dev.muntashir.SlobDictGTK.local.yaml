@@ -38,6 +38,7 @@ modules:
     subdir: source
 
   - name: lzo
+    buildsystem: autotools
     config-opts:
       - --enable-shared
       - --disable-static
@@ -56,6 +57,7 @@ modules:
           url-template: https://www.oberhumer.com/opensource/lzo/download/lzo-$version.tar.gz
 
   - name: xapian-core
+    buildsystem: autotools
     config-opts:
       - --disable-sse
       - --disable-backend-chert
