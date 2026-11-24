@@ -1,8 +1,8 @@
 {
     "uuid": "slobdict@muntashir.dev",
     "name": "Slob Dictionary Quick Lookup",
-    "description": "Look up selected text in Slob Dictionary using a four-finger touchpad gesture or a keyboard shortcut. Reads the primary selection from the clipboard when you trigger a lookup.",
-    "version": 1,
+    "description": "Look up selected text in Slob Dictionary popup using a four-finger touchpad gesture or a keyboard shortcut. Reads the primary selection from the clipboard when you trigger a lookup.",
+    "version": 2,
     "shell-version": [
         "45", "46", "47", "48", "49", "50", "51"
     ],
