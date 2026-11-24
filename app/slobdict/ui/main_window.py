@@ -835,8 +835,12 @@ class MainWindow(Adw.ApplicationWindow):
 
     def _on_close(self, window) -> bool:
         """Handle window close."""
+        if self.pending_search_task:
+            self.pending_search_task.cancel()
+        if self.pending_lookup_task:
+            self.pending_lookup_task.cancel()
+        self.executor.shutdown(wait=False, cancel_futures=True)
         self.http_server.stop()
-        self.slob_client.close() # FIXME: Move to app level
         self.settings_manager.zoom_level = self.zoom_level
         return False
 

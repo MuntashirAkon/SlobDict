@@ -54,6 +54,10 @@ class SlobDictApplication(Adw.Application):
     def do_startup(self) -> None:
         Adw.Application.do_startup(self)
 
+    def do_shutdown(self) -> None:
+        self.slob_client.close()
+        Adw.Application.do_shutdown(self)
+
     def do_open(self, files: List[Gio.File], hint: str) -> None:
         """
         Handle custom URI: slobdict://

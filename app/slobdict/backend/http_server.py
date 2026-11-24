@@ -4,13 +4,20 @@ import logging
 import json
 import threading
 
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 from urllib.parse import urlparse, parse_qs, unquote, quote
 from typing import Any, Optional, Dict, List
 from .slob_client import SlobClient
 
 
 logger = logging.getLogger(__name__)
+
+
+class DictionaryHTTPServer(ThreadingHTTPServer):
+    """Serve each WebKit request independently so shutdown isn't tied to it."""
+
+    daemon_threads = True
+    block_on_close = False
 
 
 class DictionaryHTTPHandler(BaseHTTPRequestHandler):
@@ -161,14 +168,14 @@ class HTTPServer_:
         """Initialize HTTP server."""
         self.slob_client = slob_client
         self.port = port
-        self.server: Optional[HTTPServer] = None
+        self.server: Optional[DictionaryHTTPServer] = None
         self.thread: Optional[threading.Thread] = None
         self.actual_port: Optional[int] = None
 
     def start(self) -> None:
         """Start HTTP server in background thread."""
         DictionaryHTTPHandler.slob_client = self.slob_client
-        self.server = HTTPServer(("127.0.0.1", self.port), DictionaryHTTPHandler)
+        self.server = DictionaryHTTPServer(("127.0.0.1", self.port), DictionaryHTTPHandler)
         # Get actual port if we used 0 (OS assigns)
         self.actual_port = self.server.server_address[1]
 
@@ -181,7 +188,19 @@ class HTTPServer_:
         return self.actual_port
 
     def stop(self) -> None:
-        """Stop HTTP server."""
-        if self.server:
-            self.server.shutdown()
-            logger.debug("✓ HTTP server stopped")
+        """Stop the listener and release its socket without waiting on handlers."""
+        server, thread = self.server, self.thread
+        self.server = None
+        self.thread = None
+        self.actual_port = None
+
+        if server is None:
+            return
+
+        if thread and thread.is_alive() and threading.current_thread() is not thread:
+            server.shutdown()
+        server.server_close()
+
+        if thread and threading.current_thread() is not thread:
+            thread.join(timeout=1)
+        logger.debug("✓ HTTP server stopped")
