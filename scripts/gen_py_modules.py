@@ -106,6 +106,7 @@ def generate_python_modules(sdk_version: str, dependencies: List[str], output_fi
         "python3",
         str(REPO_DIR / "flatpak-pip-generator.py"),
         f"--runtime=org.gnome.Sdk//{sdk_version}",
+        "--checker-data",
         "--output", output_file,
     ] + dependencies
     
