@@ -1,4 +1,5 @@
 import Gio from 'gi://Gio';
+import GLib from 'gi://GLib';
 import St from 'gi://St';
 import Meta from 'gi://Meta';
 import Shell from 'gi://Shell';
@@ -33,6 +34,11 @@ export default class SlobDictExtension extends Extension {
 
         // Clean up Trackpad Gesture
         global.stage.disconnectObject(this);
+
+        if (this._positionTimeoutId) {
+            GLib.Source.remove(this._positionTimeoutId);
+            this._positionTimeoutId = null;
+        }
     }
 
     _onCapturedEvent(actor, event) {
@@ -110,18 +116,77 @@ export default class SlobDictExtension extends Extension {
 
     _triggerLookup() {
         const clipboard = St.Clipboard.get_default();
+        // Save the trigger location before the asynchronous clipboard read.
+        this._popupAnchor = global.get_pointer().slice(0, 2);
 
         clipboard.get_text(St.ClipboardType.PRIMARY, (clip, text) => {
             if (text && text.trim() !== '') {
                 const cleanWord = encodeURIComponent(text.trim());
-                const uri = `slobdict://lookup/${cleanWord}/${cleanWord}`;
+                const uri = `slobdict://popup/${cleanWord}`;
+                const existingPopups = new Set(
+                    global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null)
+                        .filter(w => w.get_title() === 'SlobDict Lookup')
+                        .map(w => w.get_stable_sequence())
+                );
 
                 try {
                     Gio.AppInfo.launch_default_for_uri(uri, null);
+                    this._positionLookupWindow(existingPopups);
                 } catch (error) {
                     console.error(`SlobDict Extension Error: Failed to launch URI. ${error.message}`);
                 }
             }
         });
     }
+
+    _positionLookupWindow(existingPopups) {
+        if (this._positionTimeoutId) {
+            GLib.Source.remove(this._positionTimeoutId);
+        }
+
+        const [pointerX, pointerY] = this._popupAnchor;
+        const startedAt = GLib.get_monotonic_time();
+
+        // URI activation may need to create or present the application window.
+        // Retry briefly until Mutter reports its mapped window and frame size.
+        this._positionTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 50, () => {
+            if (GLib.get_monotonic_time() - startedAt > 10_000_000) {
+                this._positionTimeoutId = null;
+                return GLib.SOURCE_REMOVE;
+            }
+
+            const windows = global.display.get_tab_list(Meta.TabList.NORMAL_ALL, null);
+            const window = windows.find(w =>
+                w.get_title() === 'SlobDict Lookup' &&
+                !existingPopups.has(w.get_stable_sequence()) &&
+                w.get_compositor_private()
+            );
+
+            if (window) {
+                const frame = window.get_frame_rect();
+                // A newly launched window can be present in Mutter before it
+                // has its final frame geometry. Wait until it is measurable.
+                if (frame.width <= 1 || frame.height <= 1) {
+                    return GLib.SOURCE_CONTINUE;
+                }
+
+                const workArea = window.get_work_area_current_monitor();
+                const gap = 12;
+                const maxX = workArea.x + workArea.width - frame.width;
+                const maxY = workArea.y + workArea.height - frame.height;
+
+                // Prefer the pointer as the popup's top-left anchor, with a
+                // small gap; clamp to the current monitor's work area.
+                const x = Math.max(workArea.x, Math.min(pointerX + gap, maxX));
+                const y = Math.max(workArea.y, Math.min(pointerY + gap, maxY));
+                window.move_frame(false, Math.floor(x), Math.floor(y));
+
+                this._positionTimeoutId = null;
+                return GLib.SOURCE_REMOVE;
+            }
+
+            return GLib.SOURCE_CONTINUE;
+        });
+    }
+
 }

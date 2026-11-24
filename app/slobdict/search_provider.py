@@ -169,13 +169,13 @@ class SlobDictSearchProvider:
             source, key_id, key = result.split(':', 2)
             search_text = ' '.join(terms)
 
-            window: MainWindow = self.app.get_active_window()
+            window: MainWindow = self.app._ensure_main_window()
             if not window:
                 # No window exists, we need to create one
                 # This will be done in on_activate
                 logger.debug("SearchProvider: No window, creating one...")
                 self.app.activate()
-                window = self.app.get_active_window()
+                window = self.app._ensure_main_window()
 
             if window:
                 window.present()
@@ -201,10 +201,10 @@ class SlobDictSearchProvider:
         try:
             from .ui.main_window import MainWindow
 
-            window: MainWindow = self.app.get_active_window()
+            window: MainWindow = self.app._ensure_main_window()
             if not window:
                 self.app.activate()
-                window = self.app.get_active_window()
+                window = self.app._ensure_main_window()
 
             if window:
                 window.present()

@@ -15,6 +15,7 @@ from .backend.slob_client import SlobClient
 from .constants import app_id
 from .search_provider import SlobDictSearchProvider
 from .ui.main_window import MainWindow
+from .ui.popup_window import LookupPopupWindow
 from .utils.i18n import _
 
 
@@ -33,6 +34,8 @@ class SlobDictApplication(Adw.Application):
 
         from .backend.settings_manager import SettingsManager
         self.settings_manager = SettingsManager()
+        self.main_window: Optional[MainWindow] = None
+        self.lookup_popup: Optional[LookupPopupWindow] = None
 
         # Initialize dictionary backend early
         # This allows search provider to work even when no window is open
@@ -62,20 +65,26 @@ class SlobDictApplication(Adw.Application):
         """
         Handle custom URI: slobdict://
         """
-        window = self.get_active_window()
-        if not window:
-            self.activate()
-            window = self.get_active_window()
-
-        if window:
-            window.present()
-        
         # Convert Gio.File objects to URIs
         uri_list = []
         for file in files:
             uri = file.get_uri()
             if uri.startswith("slobdict://"):
                 uri_list.append(uri)
+
+        if uri_list and all(uri.startswith("slobdict://popup/") for uri in uri_list):
+            # do_open may return before the idle callback creates a window.
+            # Hold the application across that handoff when there is no main
+            # window to keep the application running.
+            for uri in uri_list:
+                if self._is_lookup_popup_uri(uri):
+                    self.hold()
+            GLib.idle_add(self._process_uris, uri_list, priority=GLib.PRIORITY_DEFAULT_IDLE)
+            return
+
+        window = self._ensure_main_window()
+        if window:
+            window.present()
         
         # Process URIs after window is ready
         if uri_list:
@@ -98,8 +107,10 @@ class SlobDictApplication(Adw.Application):
             return 0
 
         if args[1].startswith("slobdict://"):
-            self.activate()
-            # Pass the URI to your existing handler on the idle loop
+            if not args[1].startswith("slobdict://popup/"):
+                self._ensure_main_window().present()
+            elif self._is_lookup_popup_uri(args[1]):
+                self.hold()
             GLib.idle_add(self._handle_uri, args[1])
             return 0
 
@@ -216,16 +227,22 @@ class SlobDictApplication(Adw.Application):
 
     def on_activate(self, app: Gio.Application) -> None:
         """Callback for application activation."""
-        window = self.get_active_window()
-        if not window:
-            # Only instantiate a new MainWindow if one doesn't exist
-            window = MainWindow(
-                app=self, 
-                settings_manager=self.settings_manager, 
+        window = self._ensure_main_window()
+        window.present()
+
+    def _ensure_main_window(self) -> MainWindow:
+        if self.main_window is None:
+            self.main_window = MainWindow(
+                app=self,
+                settings_manager=self.settings_manager,
                 slob_client=self.slob_client
             )
-            
-        window.present()
+            self.main_window.connect("close-request", self._on_main_window_closed)
+        return self.main_window
+
+    def _on_main_window_closed(self, window) -> bool:
+        self.main_window = None
+        return False
 
     def _apply_appearance(self) -> None:
         """Apply the current appearance setting."""
@@ -243,42 +260,42 @@ class SlobDictApplication(Adw.Application):
         self._apply_appearance()
     
     def _on_dictionary_updated(self) -> None:
-        window = self.get_active_window()
+        window = self.main_window
         if window:
             window.on_dictionary_updated()
 
     def on_dictionaries(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Open dictionaries manager."""
         from .ui.dictionaries_dialog import DictionariesDialog
-        window = self.get_active_window()
+        window = self._ensure_main_window()
         dialog = DictionariesDialog(window, self.slob_client)
         dialog.set_visible(True)
 
     def on_preferences(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Open preferences dialog."""
         from .ui.preferences_dialog import PreferencesDialog
-        dialog = PreferencesDialog(self.get_active_window(), self.settings_manager)
+        dialog = PreferencesDialog(self._ensure_main_window(), self.settings_manager)
         dialog.set_visible(True)
 
     def on_search(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Handle search action (Ctrl+L)."""
-        window: MainWindow = self.get_active_window()
+        window = self._ensure_main_window()
         window.action_lookup(action, param)
 
     def on_bookmarks(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Handle history action (Ctrl+B)."""
-        window: MainWindow = self.get_active_window()
+        window = self._ensure_main_window()
         window.action_bookmarks(action, param)
 
     def on_history(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Handle history action (Ctrl+H)."""
-        window: MainWindow = self.get_active_window()
+        window = self._ensure_main_window()
         window.action_history(action, param)
 
     def on_about(self, action: Gio.SimpleAction, param: GLib.Variant) -> None:
         """Open about dialog."""
         from .constants import version
-        about = Adw.AboutWindow(transient_for=self.get_active_window())
+        about = Adw.AboutWindow(transient_for=self._ensure_main_window())
         about.set_application_name("Slob Dictionary")
         about.set_application_icon(app_id)
         about.set_version(version)
@@ -296,8 +313,9 @@ class SlobDictApplication(Adw.Application):
         """
         Process URIs after window is created and ready.
         """
+        popup_only = all(uri.startswith("slobdict://popup/") for uri in uri_list)
         window = self.get_active_window()
-        if not window:
+        if not popup_only and not window:
             logger.debug("_process_uris: Window not ready yet, retrying...")
             return True  # Retry
         
@@ -325,7 +343,7 @@ class SlobDictApplication(Adw.Application):
                 return False
 
             action = parsed.netloc
-            if action not in ('lookup', 'search'):
+            if action not in ('lookup', 'search', 'popup'):
                 logger.debug(f"URI: Invalid action {action}")
                 return False
             
@@ -341,6 +359,11 @@ class SlobDictApplication(Adw.Application):
                     logger.debug(f"URI: search '{search_term}'")
                 else:
                     logger.warning("URI: Invalid search format, expects exactly 1 argument: search_term")
+            elif action == 'popup':
+                if len(path_parts) == 2:
+                    GLib.idle_add(self._show_lookup_popup, path_parts[1])
+                else:
+                    logger.warning("URI: Invalid popup format, expects one lookup term")
             elif action == 'lookup':
                 # slobdict://lookup/{word} OR slobdict://lookup/{search_term}/{word}
                 if len(path_parts) == 2:
@@ -359,6 +382,57 @@ class SlobDictApplication(Adw.Application):
         except Exception as e:
             logger.exception(f"URI Handler error.")
         return False
+
+    def _show_lookup_popup(self, term: str) -> bool:
+        if self.lookup_popup is not None:
+            self.lookup_popup.close()
+
+        try:
+            popup = LookupPopupWindow(
+                self,
+                term,
+                self.slob_client,
+                self._open_main_window_for_entry
+            )
+            popup.connect("close-request", self._on_lookup_popup_closed)
+            self.lookup_popup = popup
+            popup.present()
+        except Exception:
+            logger.exception("Failed to create lookup popup")
+            self.release()
+        return GLib.SOURCE_REMOVE
+
+    def _on_lookup_popup_closed(self, window) -> bool:
+        if self.lookup_popup is window:
+            self.lookup_popup = None
+        self.release()
+        return False
+
+    @staticmethod
+    def _is_lookup_popup_uri(uri: str) -> bool:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(uri)
+        parts = parsed.path.split("/")
+        return (
+            parsed.scheme == "slobdict" and
+            parsed.netloc == "popup" and
+            len(parts) == 2 and
+            bool(parts[1])
+        )
+
+    def _open_main_window_for_entry(self, entry) -> None:
+        window = self._ensure_main_window()
+        window.perform_lookup(
+            entry.term,
+            selected_entry=MainWindow.LookupEntry(
+                entry.term,
+                dict_id=entry.dict_id,
+                term_id=entry.term_id
+            ),
+            select_first=True
+        )
+        window.present()
 
     def _parse_cli_args(self, args: List[str]) -> Namespace:
         """Parse command-line arguments."""
@@ -403,13 +477,7 @@ class SlobDictApplication(Adw.Application):
     def _handle_gui_mode(self, namespace: Namespace) -> bool:
         """Handle GUI mode - activate window and process arguments."""
         try:
-            window: MainWindow = self.get_active_window()
-            if not window:
-                self.activate()
-                window = self.get_active_window()
-            if not window:
-                logger.warning("Error: Failed to create window")
-                return False
+            window: MainWindow = self._ensure_main_window()
             
             window.present()
             
@@ -434,34 +502,20 @@ class SlobDictApplication(Adw.Application):
 
     def _perform_search(self, search_term: str) -> None:
         """Perform regular search."""
-        window: MainWindow = self.get_active_window()
-        if not window:
-            self.activate()
-            window = self.get_active_window()
-        
-        if window:
-            window.perform_lookup(search_term)
+        self._ensure_main_window().perform_lookup(search_term)
 
     def _perform_lookup(self, word: str) -> None:
         """Lookup and open first matched word."""
-        window: MainWindow = self.get_active_window()
-        if not window:
-            self.activate()
-            window = self.get_active_window()
-        
-        if window:
-            window.perform_lookup(word, select_first=True)
+        self._ensure_main_window().perform_lookup(word, select_first=True)
 
     def _perform_lookup_with_search(self, search_term: str, word: str) -> None:
         """Search for term, then select specific word."""
-        window: MainWindow = self.get_active_window()
-        if not window:
-            self.activate()
-            window = self.get_active_window()
-        
-        if window:
-            entry = MainWindow.LookupEntry(term=word.strip())
-            window.perform_lookup(search_term, selected_entry=entry, select_first=True)
+        entry = MainWindow.LookupEntry(term=word.strip())
+        self._ensure_main_window().perform_lookup(
+            search_term,
+            selected_entry=entry,
+            select_first=True
+        )
 
     def _cli_search(self, search_term: str, dict_filter: Optional[set] = None) -> int:
         """CLI search - print matching terms. Format: {key} {dictionary_name}"""
