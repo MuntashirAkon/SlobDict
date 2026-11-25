@@ -4,6 +4,7 @@ import json
 import hashlib
 import shutil
 import base64
+import tempfile
 from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, asdict, field
@@ -362,8 +363,7 @@ class DictionaryCatalogManager:
             dictionary.to_dict() if isinstance(dictionary, Dictionary) else dictionary
             for dictionary in data.get('dictionaries', [])
         ]
-        with open(cache_path, 'w') as f:
-            json.dump(serializable_data, f, indent=2)
+        self._atomic_write_json(cache_path, serializable_data)
         
         # Save metadata
         metadata = {
@@ -371,10 +371,26 @@ class DictionaryCatalogManager:
             'timestamp': datetime.now(timezone.utc).isoformat(),
             'etag': etag
         }
-        with open(meta_path, 'w') as f:
-            json.dump(metadata, f, indent=2)
+        self._atomic_write_json(meta_path, metadata)
         
         logger.debug(f"Cached catalog from {source}")
+
+    @staticmethod
+    def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
+        """Write JSON through a temporary file to prevent readers seeing partial data."""
+        temporary_path = None
+        try:
+            with tempfile.NamedTemporaryFile(
+                mode='w', encoding='utf-8', dir=path.parent,
+                prefix=f".{path.name}.", suffix='.tmp', delete=False
+            ) as temporary_file:
+                temporary_path = Path(temporary_file.name)
+                json.dump(data, temporary_file, indent=2)
+                temporary_file.flush()
+            temporary_path.replace(path)
+        finally:
+            if temporary_path is not None:
+                temporary_path.unlink(missing_ok=True)
     
     def _load_cache(self, source: str) -> Optional[Dict[str, Any]]:
         """Load catalog from cache if it exists."""
