@@ -18,8 +18,8 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-class DictionaryType(Enum):
-    """Dictionary type enumeration."""
+class DictionaryCategory(Enum):
+    """Semantic category shown to users."""
     MONOLINGUAL = "Monolingual"
     BILINGUAL = "Bilingual"
     THESAURUS = "Thesaurus"
@@ -39,7 +39,7 @@ class Dictionary:
     id: str
     name: str
     lang: str
-    type: str
+    type: str  # PyGlossary input format, or "slob" for a native SLOB file
     version: int
     size: int
     hash: str
@@ -47,6 +47,8 @@ class Dictionary:
     url: str
     copyright: Optional[str] = None
     compression: Optional[str] = None
+    path: Optional[str] = None
+    category: Optional[str] = None
     
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
@@ -66,7 +68,9 @@ class Dictionary:
             hash_algo=data.get('hash_algo', 'SHA-256'),
             url=data.get('url', ''),
             copyright=data.get('copyright'),
-            compression=data.get('compression')
+            compression=data.get('compression'),
+            path=data.get('path'),
+            category=data.get('category')
         )
 
 
@@ -144,14 +148,15 @@ class CatalogParser:
                 id=asset.get('DictionaryIdentifier', ''),
                 name=asset.get('DictionaryPackageDisplayName', ''),
                 lang=asset.get('Language', ''),
-                type=asset.get('DictionaryType', 'Monolingual'),
+                type='AppleDictBin',
                 version=asset.get('_ContentVersion', 1),
                 size=asset.get('_DownloadSize', 0),
                 hash=hash_value,
                 hash_algo=hash_algo,
                 url=url,
                 copyright=asset.get('DictionaryCopyright'),
-                compression=asset.get('_CompressionAlgorithm')
+                compression=asset.get('_CompressionAlgorithm'),
+                category=asset.get('DictionaryType', DictionaryCategory.MONOLINGUAL.value)
             )
             current = dictionaries_by_id.get(dictionary.id)
             if current is None or dictionary.version >= current.version:
@@ -456,11 +461,16 @@ class DictionaryCatalogManager:
             # Try to load from cache first
             cached_data = self._load_cache(source)
             if cached_data and not force_refresh:
-                catalog = self._create_catalog_from_data(
-                    source, cached_data, cached_data.get('type', 'slobdict')
-                )
-                self.catalogs[source] = catalog
-                return catalog
+                try:
+                    catalog = self._create_catalog_from_data(
+                        source, cached_data, cached_data.get('type', 'slobdict')
+                    )
+                except (TypeError, ValueError) as e:
+                    logger.warning(f"Ignoring incompatible catalog cache for {source}: {e}")
+                    cached_data = None
+                else:
+                    self.catalogs[source] = catalog
+                    return catalog
         
         # Load from source
         if is_remote:
@@ -508,6 +518,14 @@ class DictionaryCatalogManager:
                 raise ValueError(f"Invalid dictionary entry at index {index}: id, name, and url are required")
             if not isinstance(dictionary.lang, str):
                 raise ValueError(f"Invalid dictionary entry at index {index}: lang must be a string")
+            if not isinstance(dictionary.type, str) or not dictionary.type.strip():
+                raise ValueError(f"Invalid dictionary entry at index {index}: type is required")
+            if dictionary.path is not None and not isinstance(dictionary.path, str):
+                raise ValueError(f"Invalid dictionary entry at index {index}: path must be a string")
+            if dictionary.category is not None and not isinstance(dictionary.category, str):
+                raise ValueError(f"Invalid dictionary entry at index {index}: category must be a string")
+            if dictionary.compression is not None and not isinstance(dictionary.compression, str):
+                raise ValueError(f"Invalid dictionary entry at index {index}: compression must be a string")
             if not isinstance(dictionary.size, int) or dictionary.size < 0:
                 raise ValueError(f"Invalid dictionary entry at index {index}: size must be a non-negative integer")
             if not isinstance(dictionary.version, int) or dictionary.version < 0:
@@ -613,19 +631,20 @@ class DictionaryCatalogManager:
         return result
     
     def find_dictionaries_by_type(self, dict_type: str) -> List[tuple[str, Dictionary]]:
-        """
-        Find all dictionaries of a specific type.
-        
-        Args:
-            dict_type: One of 'Monolingual', 'Bilingual', 'Thesaurus'
-        
-        Returns:
-            List of tuples (source, dictionary)
-        """
+        """Find all dictionaries using a specific PyGlossary input format."""
         result = []
         for source, catalog in self.catalogs.items():
             for dictionary in catalog.dictionaries:
                 if dictionary.type == dict_type:
+                    result.append((source, dictionary))
+        return result
+
+    def find_dictionaries_by_category(self, category: str) -> List[tuple[str, Dictionary]]:
+        """Find all dictionaries in a user-facing semantic category."""
+        result = []
+        for source, catalog in self.catalogs.items():
+            for dictionary in catalog.dictionaries:
+                if dictionary.category == category:
                     result.append((source, dictionary))
         return result
     
