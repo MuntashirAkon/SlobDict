@@ -3,6 +3,7 @@
 import json
 import hashlib
 import shutil
+import base64
 from pathlib import Path
 from datetime import datetime, timezone
 from dataclasses import dataclass, asdict, field
@@ -115,7 +116,7 @@ class CatalogParser:
                 "Expected: com.apple.MobileAsset.DictionaryServices.dictionaryOSX"
             )
         
-        dictionaries = []
+        dictionaries_by_id: Dict[str, Dictionary] = {}
         base_url = None
         
         assets = data.get('Assets', [])
@@ -134,6 +135,8 @@ class CatalogParser:
             
             # Convert hash measurement (base64) if needed
             hash_value = asset.get('_Measurement', '')
+            if isinstance(hash_value, bytes):
+                hash_value = base64.b64encode(hash_value).decode('ascii')
             hash_algo = asset.get('_MeasurementAlgorithm', 'SHA-256')
             
             dictionary = Dictionary(
@@ -149,7 +152,13 @@ class CatalogParser:
                 copyright=asset.get('DictionaryCopyright'),
                 compression=asset.get('_CompressionAlgorithm')
             )
-            dictionaries.append(dictionary)
+            current = dictionaries_by_id.get(dictionary.id)
+            if current is None or dictionary.version >= current.version:
+                # Catalogs may retain older assets for the same dictionary ID.
+                # Keep a single entry and prefer the newest version.
+                dictionaries_by_id[dictionary.id] = dictionary
+
+        dictionaries = list(dictionaries_by_id.values())
         
         return {
             'type': 'apple',
@@ -469,7 +478,7 @@ class DictionaryCatalogManager:
         raw_dictionaries = data.get('dictionaries')
         if not isinstance(raw_dictionaries, list):
             raise ValueError("Catalog must contain a dictionaries list")
-        dictionaries = []
+        dictionaries_by_id: Dict[str, Dictionary] = {}
         
         for index, dict_data in enumerate(raw_dictionaries):
             if isinstance(dict_data, Dictionary):
@@ -479,13 +488,19 @@ class DictionaryCatalogManager:
                     raise ValueError(f"Invalid dictionary entry at index {index}: expected an object")
                 dictionary = Dictionary.from_dict(dict_data)
             if not all(isinstance(value, str) and value.strip() for value in
-                       (dictionary.id, dictionary.name, dictionary.lang, dictionary.url)):
-                raise ValueError(f"Invalid dictionary entry at index {index}: id, name, lang, and url are required")
+                       (dictionary.id, dictionary.name, dictionary.url)):
+                raise ValueError(f"Invalid dictionary entry at index {index}: id, name, and url are required")
+            if not isinstance(dictionary.lang, str):
+                raise ValueError(f"Invalid dictionary entry at index {index}: lang must be a string")
             if not isinstance(dictionary.size, int) or dictionary.size < 0:
                 raise ValueError(f"Invalid dictionary entry at index {index}: size must be a non-negative integer")
             if not isinstance(dictionary.version, int) or dictionary.version < 0:
                 raise ValueError(f"Invalid dictionary entry at index {index}: version must be a non-negative integer")
-            dictionaries.append(dictionary)
+            current = dictionaries_by_id.get(dictionary.id)
+            if current is None or dictionary.version >= current.version:
+                dictionaries_by_id[dictionary.id] = dictionary
+
+        dictionaries = list(dictionaries_by_id.values())
         
         catalog = DictionaryCatalog(
             source=source,
