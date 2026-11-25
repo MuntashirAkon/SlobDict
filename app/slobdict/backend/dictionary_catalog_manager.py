@@ -100,7 +100,7 @@ class DictionaryCatalog:
     
     def get_all_languages(self) -> List[str]:
         """Get list of all languages in catalog."""
-        return sorted(set(d.lang for d in self.dictionaries))
+        return sorted(set(d.lang for d in self.dictionaries if d.lang))
 
 
 class CatalogParser:
