@@ -1,7 +1,6 @@
 # SPDX-License-Identifier: AGPL-3.0-or-later
 
 import json
-import os
 import hashlib
 import shutil
 from pathlib import Path
@@ -119,7 +118,12 @@ class CatalogParser:
         dictionaries = []
         base_url = None
         
-        for asset in data.get('Assets', []):
+        assets = data.get('Assets', [])
+        if not isinstance(assets, list):
+            raise ValueError("Invalid Apple catalog: Assets must be a list")
+        for asset in assets:
+            if not isinstance(asset, dict):
+                raise ValueError("Invalid Apple catalog: each asset must be an object")
             # Construct full URL from base URL and relative path
             if '__BaseURL' in asset:
                 base_url = asset['__BaseURL']
@@ -161,26 +165,27 @@ class CatalogParser:
         Auto-detects format (PLIST/XML or JSON).
         Converts Apple format to standard format if needed.
         """
-        source_lower = source_path.lower()
+        source_lower = source_path.lower().split('?', 1)[0]
         
         # Try PLIST/XML first (for .plist or .xml files)
         if source_lower.endswith(('.plist', '.xml')):
             try:
                 data: Dict[str, Any] = plistlib.loads(content)
                 logger.debug(f"Parsed {source_path} as PLIST/XML")
-                
-                # Check if it's an Apple catalog
-                if data.get('AssetType') == 'com.apple.MobileAsset.DictionaryServices.dictionaryOSX':
-                    return CatalogParser._normalize_apple_catalog(data)
-                else:
-                    # Assume it's already in our format
-                    return data
             except Exception as e:
                 logger.warning(f"Failed to parse {source_path} as PLIST: {e}")
+            else:
+                if not isinstance(data, dict):
+                    raise ValueError("Catalog root must be an object")
+                if data.get('AssetType') == 'com.apple.MobileAsset.DictionaryServices.dictionaryOSX':
+                    return CatalogParser._normalize_apple_catalog(data)
+                return data
         
         # Try JSON
         try:
             data = json.loads(content.decode('utf-8'))
+            if not isinstance(data, dict):
+                raise ValueError("Catalog root must be an object")
             logger.debug(f"Parsed {source_path} as JSON")
             
             # Check if it's an Apple catalog in JSON format
@@ -189,7 +194,7 @@ class CatalogParser:
             else:
                 # Assume it's already in our format
                 return data
-        except json.JSONDecodeError as e:
+        except (json.JSONDecodeError, UnicodeDecodeError) as e:
             logger.error(f"Failed to parse {source_path} as JSON: {e}")
             raise ValueError(f"Could not parse catalog from {source_path}. Unsupported format.")
 
@@ -211,19 +216,73 @@ class DictionaryCatalogManager:
         Initialize the catalog manager.
         
         Args:
-            cache_dir: Directory to store cached catalogs.
-                      If None, uses ~/.cache/dict-app/catalogs/
+            cache_dir: Directory to store cached catalogs. If omitted, uses the
+                       application's cache directory.
         """
         if cache_dir is None:
-            cache_dir = os.path.expanduser('~/.cache/dict-app/catalogs/')
+            from ..utils.utils import get_config_dir
+            app_data_dir = get_config_dir()
+            cache_dir = str(app_data_dir / "cache" / "catalogs")
+        else:
+            from ..utils.utils import get_config_dir
+            app_data_dir = get_config_dir()
         
         self.cache_dir = Path(cache_dir)
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         
         # In-memory catalogs
         self.catalogs: Dict[str, DictionaryCatalog] = {}
+        self._sources_file = app_data_dir / "catalog_sources.json"
+        self.catalog_sources = self._load_catalog_sources()
         
         logger.info(f"DictionaryCatalogManager initialized with cache dir: {self.cache_dir}")
+
+    def _load_catalog_sources(self) -> List[str]:
+        """Load the configured catalog source list."""
+        try:
+            with self._sources_file.open('r', encoding='utf-8') as source_file:
+                sources = json.load(source_file)
+            if isinstance(sources, list) and all(isinstance(source, str) for source in sources):
+                return list(dict.fromkeys(sources))
+        except FileNotFoundError:
+            pass
+        except (OSError, json.JSONDecodeError) as e:
+            logger.warning(f"Failed to load catalog source list: {e}")
+        return []
+
+    def _save_catalog_sources(self) -> None:
+        """Persist configured catalog sources."""
+        self._sources_file.parent.mkdir(parents=True, exist_ok=True)
+        with self._sources_file.open('w', encoding='utf-8') as source_file:
+            json.dump(self.catalog_sources, source_file, indent=2)
+
+    def add_catalog(self, source: str, force_refresh: bool = False) -> DictionaryCatalog:
+        """Load and register a catalog source."""
+        catalog = self.load_catalog(source, force_refresh=force_refresh)
+        if source not in self.catalog_sources:
+            self.catalog_sources.append(source)
+            self._save_catalog_sources()
+        return catalog
+
+    def remove_catalog(self, source: str) -> bool:
+        """Forget a catalog and its cache without deleting installed dictionaries."""
+        existed = source in self.catalog_sources or source in self.catalogs
+        self.catalog_sources = [configured for configured in self.catalog_sources if configured != source]
+        self.catalogs.pop(source, None)
+        self.clear_cache(source)
+        if existed:
+            self._save_catalog_sources()
+        return existed
+
+    def load_configured_catalogs(self, force_refresh: bool = False) -> List[DictionaryCatalog]:
+        """Load all configured catalogs, logging individual failures."""
+        loaded = []
+        for source in self.catalog_sources:
+            try:
+                loaded.append(self.load_catalog(source, force_refresh=force_refresh))
+            except Exception:
+                logger.exception(f"Failed to load catalog: {source}")
+        return loaded
     
     def _get_cache_path(self, source: str) -> Path:
         """
@@ -248,7 +307,7 @@ class DictionaryCatalogManager:
         logger.info(f"Loading catalog from file: {file_path}")
         return path.read_bytes()
     
-    def _load_remote_catalog(self, url: str) -> tuple[bytes, Optional[str]]:
+    def _load_remote_catalog(self, url: str, etag: Optional[str] = None) -> tuple[Optional[bytes], Optional[str]]:
         """
         Load catalog from remote URL.
         
@@ -264,7 +323,16 @@ class DictionaryCatalogManager:
         logger.info(f"Downloading catalog from: {url}")
         
         try:
-            with urllib.request.urlopen(url, timeout=30) as response:
+            request = urllib.request.Request(url)
+            if etag:
+                request.add_header('If-None-Match', etag)
+            try:
+                response = urllib.request.urlopen(request, timeout=30)
+            except urllib.error.HTTPError as e:
+                if e.code == 304:
+                    return None, etag
+                raise
+            with response:
                 content = response.read()
                 etag = response.headers.get('ETag')
                 
@@ -278,9 +346,15 @@ class DictionaryCatalogManager:
         cache_path = self._get_cache_path(source)
         meta_path = self._get_cache_metadata_path(source)
         
-        # Save catalog data
+        # Apple parsing produces Dictionary objects. Persist a JSON-safe
+        # normalized form so cached catalogs can be reconstructed on reload.
+        serializable_data = dict(data)
+        serializable_data['dictionaries'] = [
+            dictionary.to_dict() if isinstance(dictionary, Dictionary) else dictionary
+            for dictionary in data.get('dictionaries', [])
+        ]
         with open(cache_path, 'w') as f:
-            json.dump(data, f, indent=2, default=str)
+            json.dump(serializable_data, f, indent=2)
         
         # Save metadata
         metadata = {
@@ -319,7 +393,7 @@ class DictionaryCatalogManager:
         try:
             with open(meta_path, 'r') as f:
                 metadata = json.load(f)
-            return str(metadata.get('etag'))
+            return metadata.get('etag')
         except Exception:
             return None
     
@@ -352,17 +426,26 @@ class DictionaryCatalogManager:
         content = None
         etag = None
         
-        if is_remote and not force_refresh:
+        cached_data = None
+        if is_remote:
             # Try to load from cache first
             cached_data = self._load_cache(source)
-            if cached_data:
-                catalog = self._create_catalog_from_data(source, cached_data, 'apple')
+            if cached_data and not force_refresh:
+                catalog = self._create_catalog_from_data(
+                    source, cached_data, cached_data.get('type', 'slobdict')
+                )
                 self.catalogs[source] = catalog
                 return catalog
         
         # Load from source
         if is_remote:
-            content, etag = self._load_remote_catalog(source)
+            content, etag = self._load_remote_catalog(
+                source, self._get_cached_etag(source) if force_refresh else None
+            )
+            if content is None and cached_data is not None:
+                catalog = self._create_catalog_from_data(source, cached_data, cached_data.get('type', 'slobdict'))
+                self.catalogs[source] = catalog
+                return catalog
         else:
             content = self._load_local_catalog(source)
         
@@ -381,13 +464,28 @@ class DictionaryCatalogManager:
     
     def _create_catalog_from_data(self, source: str, data: Dict[str, Any], cat_type: str) -> DictionaryCatalog:
         """Create DictionaryCatalog object from parsed data."""
+        if not isinstance(data, dict):
+            raise ValueError("Catalog root must be an object")
+        raw_dictionaries = data.get('dictionaries')
+        if not isinstance(raw_dictionaries, list):
+            raise ValueError("Catalog must contain a dictionaries list")
         dictionaries = []
         
-        for dict_data in data.get('dictionaries', []):
+        for index, dict_data in enumerate(raw_dictionaries):
             if isinstance(dict_data, Dictionary):
-                dictionaries.append(dict_data)
+                dictionary = dict_data
             else:
-                dictionaries.append(Dictionary.from_dict(dict_data))
+                if not isinstance(dict_data, dict):
+                    raise ValueError(f"Invalid dictionary entry at index {index}: expected an object")
+                dictionary = Dictionary.from_dict(dict_data)
+            if not all(isinstance(value, str) and value.strip() for value in
+                       (dictionary.id, dictionary.name, dictionary.lang, dictionary.url)):
+                raise ValueError(f"Invalid dictionary entry at index {index}: id, name, lang, and url are required")
+            if not isinstance(dictionary.size, int) or dictionary.size < 0:
+                raise ValueError(f"Invalid dictionary entry at index {index}: size must be a non-negative integer")
+            if not isinstance(dictionary.version, int) or dictionary.version < 0:
+                raise ValueError(f"Invalid dictionary entry at index {index}: version must be a non-negative integer")
+            dictionaries.append(dictionary)
         
         catalog = DictionaryCatalog(
             source=source,
@@ -426,11 +524,13 @@ class DictionaryCatalogManager:
             
             cache_path.unlink(missing_ok=True)
             meta_path.unlink(missing_ok=True)
+            self.catalogs.pop(source, None)
             
             logger.info(f"Cleared cache for: {source}")
         else:
             shutil.rmtree(self.cache_dir, ignore_errors=True)
             self.cache_dir.mkdir(parents=True, exist_ok=True)
+            self.catalogs.clear()
             
             logger.info("Cleared all cache")
     
