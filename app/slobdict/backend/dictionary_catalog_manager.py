@@ -5,12 +5,13 @@ import hashlib
 import shutil
 import base64
 import tempfile
-from pathlib import Path
+import re
+from pathlib import Path, PurePosixPath
 from datetime import datetime, timezone
 from dataclasses import dataclass, asdict, field
 from typing import Optional, List, Dict, Any
 from enum import Enum
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 import plistlib
 import logging
 
@@ -457,42 +458,41 @@ class DictionaryCatalogManager:
         etag = None
         
         cached_data = None
+        cached_catalog = None
         if is_remote:
             # Try to load from cache first
             cached_data = self._load_cache(source)
-            if cached_data and not force_refresh:
+            if cached_data:
                 try:
-                    catalog = self._create_catalog_from_data(
+                    cached_catalog = self._create_catalog_from_data(
                         source, cached_data, cached_data.get('type', 'slobdict')
                     )
                 except (TypeError, ValueError) as e:
                     logger.warning(f"Ignoring incompatible catalog cache for {source}: {e}")
                     cached_data = None
-                else:
-                    self.catalogs[source] = catalog
-                    return catalog
+                    cached_catalog = None
+                if cached_catalog is not None and not force_refresh:
+                    self.catalogs[source] = cached_catalog
+                    return cached_catalog
         
         # Load from source
         if is_remote:
             content, etag = self._load_remote_catalog(
-                source, self._get_cached_etag(source) if force_refresh else None
+                source, self._get_cached_etag(source) if force_refresh and cached_data is not None else None
             )
-            if content is None and cached_data is not None:
-                catalog = self._create_catalog_from_data(source, cached_data, cached_data.get('type', 'slobdict'))
-                self.catalogs[source] = catalog
-                return catalog
+            if content is None and cached_catalog is not None:
+                self.catalogs[source] = cached_catalog
+                return cached_catalog
         else:
             content = self._load_local_catalog(source)
         
         # Parse catalog
         parsed_data = CatalogParser.parse(content, source)
-        
-        # Save to cache
+
+        # Validate before caching so malformed catalogs never poison the cache.
+        catalog = self._create_catalog_from_data(source, parsed_data, parsed_data.get('type', 'slobdict'))
         if is_remote:
             self._save_cache(source, parsed_data, etag)
-        
-        # Create catalog object
-        catalog = self._create_catalog_from_data(source, parsed_data, parsed_data.get('type', 'slobdict'))
         self.catalogs[source] = catalog
         
         return catalog
@@ -504,6 +504,9 @@ class DictionaryCatalogManager:
         raw_dictionaries = data.get('dictionaries')
         if not isinstance(raw_dictionaries, list):
             raise ValueError("Catalog must contain a dictionaries list")
+        catalog_version = data.get('version', 1)
+        if isinstance(catalog_version, bool) or not isinstance(catalog_version, int) or catalog_version < 0:
+            raise ValueError("Catalog version must be a non-negative integer")
         dictionaries_by_id: Dict[str, Dictionary] = {}
         
         for index, dict_data in enumerate(raw_dictionaries):
@@ -513,23 +516,7 @@ class DictionaryCatalogManager:
                 if not isinstance(dict_data, dict):
                     raise ValueError(f"Invalid dictionary entry at index {index}: expected an object")
                 dictionary = Dictionary.from_dict(dict_data)
-            if not all(isinstance(value, str) and value.strip() for value in
-                       (dictionary.id, dictionary.name, dictionary.url)):
-                raise ValueError(f"Invalid dictionary entry at index {index}: id, name, and url are required")
-            if not isinstance(dictionary.lang, str):
-                raise ValueError(f"Invalid dictionary entry at index {index}: lang must be a string")
-            if not isinstance(dictionary.type, str) or not dictionary.type.strip():
-                raise ValueError(f"Invalid dictionary entry at index {index}: type is required")
-            if dictionary.path is not None and not isinstance(dictionary.path, str):
-                raise ValueError(f"Invalid dictionary entry at index {index}: path must be a string")
-            if dictionary.category is not None and not isinstance(dictionary.category, str):
-                raise ValueError(f"Invalid dictionary entry at index {index}: category must be a string")
-            if dictionary.compression is not None and not isinstance(dictionary.compression, str):
-                raise ValueError(f"Invalid dictionary entry at index {index}: compression must be a string")
-            if not isinstance(dictionary.size, int) or dictionary.size < 0:
-                raise ValueError(f"Invalid dictionary entry at index {index}: size must be a non-negative integer")
-            if not isinstance(dictionary.version, int) or dictionary.version < 0:
-                raise ValueError(f"Invalid dictionary entry at index {index}: version must be a non-negative integer")
+            self._validate_dictionary(dictionary, index)
             current = dictionaries_by_id.get(dictionary.id)
             if current is None or dictionary.version >= current.version:
                 dictionaries_by_id[dictionary.id] = dictionary
@@ -539,12 +526,96 @@ class DictionaryCatalogManager:
         catalog = DictionaryCatalog(
             source=source,
             type=cat_type,
-            version=data.get('version', 1),
+            version=catalog_version,
             dictionaries=dictionaries,
             last_updated=datetime.now(timezone.utc)
         )
         
         return catalog
+
+    @staticmethod
+    def _validate_dictionary(dictionary: Dictionary, index: int) -> None:
+        """Validate catalog metadata before it reaches download/import code."""
+        def invalid(field: str, requirement: str) -> ValueError:
+            return ValueError(f"Invalid dictionary entry at index {index}: {field} {requirement}")
+
+        for field_name in ("id", "name", "url"):
+            value = getattr(dictionary, field_name)
+            if not isinstance(value, str) or not value.strip():
+                raise invalid(field_name, "is required")
+
+        if not isinstance(dictionary.lang, str):
+            raise invalid("lang", "must be a string")
+        if dictionary.type is None:
+            dictionary.type = ""
+        elif not isinstance(dictionary.type, str):
+            raise invalid("type", "must be a string when provided")
+        if dictionary.category is not None and not isinstance(dictionary.category, str):
+            raise invalid("category", "must be a string when provided")
+        categories = {category.value for category in DictionaryCategory}
+        if dictionary.category is not None and dictionary.category not in categories:
+            raise invalid("category", f"must be one of {', '.join(sorted(categories))}")
+        if dictionary.copyright is not None and not isinstance(dictionary.copyright, str):
+            raise invalid("copyright", "must be a string when provided")
+        if isinstance(dictionary.size, bool) or not isinstance(dictionary.size, int) or dictionary.size < 0:
+            raise invalid("size", "must be a non-negative integer")
+        if isinstance(dictionary.version, bool) or not isinstance(dictionary.version, int) or dictionary.version < 0:
+            raise invalid("version", "must be a non-negative integer")
+
+        algorithm_aliases = {
+            "SHA1": "SHA-1", "SHA-1": "SHA-1",
+            "SHA256": "SHA-256", "SHA-256": "SHA-256",
+            "SHA512": "SHA-512", "SHA-512": "SHA-512",
+        }
+        if not isinstance(dictionary.hash_algo, str):
+            raise invalid("hash_algo", "must be one of SHA-1, SHA-256, or SHA-512")
+        algorithm_key = dictionary.hash_algo.strip().upper().replace("_", "-")
+        canonical_algorithm = algorithm_aliases.get(algorithm_key)
+        if canonical_algorithm is None:
+            raise invalid("hash_algo", "must be one of SHA-1, SHA-256, or SHA-512")
+        dictionary.hash_algo = canonical_algorithm
+
+        if not isinstance(dictionary.hash, str) or not dictionary.hash.strip():
+            raise invalid("hash", "is required")
+        dictionary.hash = dictionary.hash.strip()
+        hash_size = hashlib.new(canonical_algorithm.lower().replace("-", "")).digest_size
+        if re.fullmatch(r"[A-Fa-f0-9]+", dictionary.hash) and len(dictionary.hash) == hash_size * 2:
+            encoded_hash = bytes.fromhex(dictionary.hash)
+        else:
+            try:
+                encoded_hash = base64.b64decode(
+                    dictionary.hash + "=" * (-len(dictionary.hash) % 4), validate=True
+                )
+            except (ValueError, TypeError) as e:
+                raise invalid("hash", "must be valid hexadecimal or base64") from e
+        if len(encoded_hash) != hash_size:
+            raise invalid("hash", f"must encode a {canonical_algorithm} digest")
+
+        parsed_url = urlparse(dictionary.url)
+        if parsed_url.scheme not in ("http", "https") or not parsed_url.netloc:
+            raise invalid("url", "must be an HTTP or HTTPS URL")
+
+        if dictionary.compression is not None:
+            if not isinstance(dictionary.compression, str):
+                raise invalid("compression", "must be 'zip' when provided")
+            compression = dictionary.compression.strip().casefold()
+            if compression not in ("", "zip"):
+                raise invalid("compression", "supports only 'zip'")
+            dictionary.compression = compression or None
+
+        if dictionary.path is not None:
+            if not isinstance(dictionary.path, str):
+                raise invalid("path", "must be a relative path when provided")
+            normalized_path = dictionary.path.replace("\\", "/")
+            path = PurePosixPath(normalized_path)
+            if not normalized_path.strip():
+                dictionary.path = None
+            elif (path.is_absolute() or path.as_posix() == "." or
+                    any(part in ("..", "") for part in path.parts) or
+                    (len(normalized_path) >= 2 and normalized_path[1] == ":")):
+                raise invalid("path", "must be a safe relative path")
+            else:
+                dictionary.path = path.as_posix()
     
     def unload_catalog(self, source: str) -> bool:
         """
