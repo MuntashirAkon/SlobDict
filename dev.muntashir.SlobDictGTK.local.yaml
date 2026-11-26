@@ -112,18 +112,6 @@ modules:
       - type: file
         path: app/python3-modules.json
 
-  - name: blueprint-compiler
-    buildsystem: meson
-    sources:
-      - type: git
-        url: https://gitlab.gnome.org/jwestman/blueprint-compiler
-        tag: v0.22.2
-        commit: ed35ac74de0c1bb1f5e852410b97edd1f08904c9
-        x-checker-data:
-          type: anitya
-          project-id: 279929
-          tag-template: v$version
-
   - name: dev.muntashir.SlobDictGTK
     builddir: true
     buildsystem: meson
