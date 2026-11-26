@@ -17,6 +17,7 @@ import logging
 
 
 logger = logging.getLogger(__name__)
+CATALOG_CACHE_SCHEMA_VERSION = 1
 
 
 class DictionaryCategory(Enum):
@@ -63,10 +64,10 @@ class Dictionary:
             name=data.get('name', ''),
             lang=data.get('lang', ''),
             type=data.get('type', ''),
-            version=data.get('version', 0),
-            size=data.get('size', 0),
+            version=data.get('version'),
+            size=data.get('size'),
             hash=data.get('hash', ''),
-            hash_algo=data.get('hash_algo', 'SHA-256'),
+            hash_algo=data.get('hash_algo'),
             url=data.get('url', ''),
             copyright=data.get('copyright'),
             compression=data.get('compression'),
@@ -89,7 +90,7 @@ class DictionaryCatalog:
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary representation."""
         return {
-            'type': 'slobdict',
+            'type': self.type,
             'version': self.version,
             'dictionaries': [d.to_dict() for d in self.dictionaries]
         }
@@ -121,43 +122,61 @@ class CatalogParser:
                 f"Invalid Apple catalog type: {data.get('AssetType')}. "
                 "Expected: com.apple.MobileAsset.DictionaryServices.dictionaryOSX"
             )
+        if 'FormatVersion' not in data:
+            raise ValueError("Invalid Apple catalog: FormatVersion is required")
+        format_version = data['FormatVersion']
+        if isinstance(format_version, bool) or not isinstance(format_version, int) or format_version < 0:
+            raise ValueError("Invalid Apple catalog: FormatVersion must be a non-negative integer")
         
         dictionaries_by_id: Dict[str, Dictionary] = {}
-        base_url = None
-        
-        assets = data.get('Assets', [])
+        if 'Assets' not in data:
+            raise ValueError("Invalid Apple catalog: Assets is required")
+        assets = data['Assets']
         if not isinstance(assets, list):
             raise ValueError("Invalid Apple catalog: Assets must be a list")
+        required_fields = (
+            '__BaseURL', '_Measurement', '_MeasurementAlgorithm', '__RelativePath',
+            'DictionaryPackageName', 'DictionaryIdentifier',
+            'DictionaryPackageDisplayName', '_ContentVersion', '_DownloadSize',
+            'DictionaryCopyright', '_CompressionAlgorithm', 'DictionaryType',
+        )
         for asset in assets:
             if not isinstance(asset, dict):
                 raise ValueError("Invalid Apple catalog: each asset must be an object")
-            # Construct full URL from base URL and relative path
-            if '__BaseURL' in asset:
-                base_url = asset['__BaseURL']
-                relative_path = asset.get('__RelativePath', '')
-                url = urljoin(base_url, relative_path)
-            else:
-                url = asset.get('url', '')
+            missing_fields = [
+                field_name for field_name in required_fields
+                if field_name not in asset or asset[field_name] is None
+            ]
+            if missing_fields:
+                raise ValueError(
+                    "Invalid Apple catalog asset: missing required field(s): "
+                    + ", ".join(missing_fields)
+                )
+            # Construct the asset URL from the catalog's base URL and path.
+            url = urljoin(asset['__BaseURL'], asset['__RelativePath'])
             
             # Convert hash measurement (base64) if needed
-            hash_value = asset.get('_Measurement', '')
+            hash_value = asset['_Measurement']
             if isinstance(hash_value, bytes):
                 hash_value = base64.b64encode(hash_value).decode('ascii')
-            hash_algo = asset.get('_MeasurementAlgorithm', 'SHA-256')
+            hash_algo = asset['_MeasurementAlgorithm']
+            package_name = asset['DictionaryPackageName']
+            package_path = f"AssetData/{package_name}" if package_name else None
             
             dictionary = Dictionary(
-                id=asset.get('DictionaryIdentifier', ''),
-                name=asset.get('DictionaryPackageDisplayName', ''),
+                id=asset['DictionaryIdentifier'],
+                name=asset['DictionaryPackageDisplayName'],
                 lang=asset.get('Language', ''),
                 type='AppleDictBin',
-                version=asset.get('_ContentVersion', 1),
-                size=asset.get('_DownloadSize', 0),
+                version=asset['_ContentVersion'],
+                size=asset['_DownloadSize'],
                 hash=hash_value,
                 hash_algo=hash_algo,
                 url=url,
-                copyright=asset.get('DictionaryCopyright'),
-                compression=asset.get('_CompressionAlgorithm'),
-                category=asset.get('DictionaryType', DictionaryCategory.MONOLINGUAL.value)
+                copyright=asset['DictionaryCopyright'],
+                compression=asset['_CompressionAlgorithm'],
+                path=package_path,
+                category=asset['DictionaryType']
             )
             current = dictionaries_by_id.get(dictionary.id)
             if current is None or dictionary.version >= current.version:
@@ -169,7 +188,7 @@ class CatalogParser:
         
         return {
             'type': 'apple',
-            'version': int(data.get('FormatVersion', 1)),
+            'version': format_version,
             'dictionaries': dictionaries
         }
     
@@ -269,8 +288,7 @@ class DictionaryCatalogManager:
     def _save_catalog_sources(self) -> None:
         """Persist configured catalog sources."""
         self._sources_file.parent.mkdir(parents=True, exist_ok=True)
-        with self._sources_file.open('w', encoding='utf-8') as source_file:
-            json.dump(self.catalog_sources, source_file, indent=2)
+        self._atomic_write_json(self._sources_file, self.catalog_sources)
 
     def add_catalog(self, source: str, force_refresh: bool = False) -> DictionaryCatalog:
         """Load and register a catalog source."""
@@ -375,14 +393,15 @@ class DictionaryCatalogManager:
         metadata = {
             'source': source,
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'etag': etag
+            'etag': etag,
+            'schema_version': CATALOG_CACHE_SCHEMA_VERSION,
         }
         self._atomic_write_json(meta_path, metadata)
         
         logger.debug(f"Cached catalog from {source}")
 
     @staticmethod
-    def _atomic_write_json(path: Path, data: Dict[str, Any]) -> None:
+    def _atomic_write_json(path: Path, data: Any) -> None:
         """Write JSON through a temporary file to prevent readers seeing partial data."""
         temporary_path = None
         try:
@@ -406,6 +425,11 @@ class DictionaryCatalogManager:
             return None
         
         try:
+            with self._get_cache_metadata_path(source).open('r', encoding='utf-8') as meta_file:
+                metadata = json.load(meta_file)
+            if metadata.get('schema_version') != CATALOG_CACHE_SCHEMA_VERSION:
+                logger.info(f"Ignoring outdated catalog cache for {source}")
+                return None
             with open(cache_path, 'r') as f:
                 data: Dict[str, Any] = json.load(f)
             logger.debug(f"Loaded catalog from cache: {source}")
@@ -424,6 +448,8 @@ class DictionaryCatalogManager:
         try:
             with open(meta_path, 'r') as f:
                 metadata = json.load(f)
+            if metadata.get('schema_version') != CATALOG_CACHE_SCHEMA_VERSION:
+                return None
             return metadata.get('etag')
         except Exception:
             return None
@@ -543,30 +569,35 @@ class DictionaryCatalogManager:
             value = getattr(dictionary, field_name)
             if not isinstance(value, str) or not value.strip():
                 raise invalid(field_name, "is required")
+            setattr(dictionary, field_name, value.strip())
 
         if not isinstance(dictionary.lang, str):
             raise invalid("lang", "must be a string")
+        dictionary.lang = dictionary.lang.strip()
         if dictionary.type is None:
             dictionary.type = ""
         elif not isinstance(dictionary.type, str):
             raise invalid("type", "must be a string when provided")
+        else:
+            dictionary.type = dictionary.type.strip()
         if dictionary.category is not None and not isinstance(dictionary.category, str):
             raise invalid("category", "must be a string when provided")
+        if dictionary.category is not None:
+            dictionary.category = dictionary.category.strip()
         categories = {category.value for category in DictionaryCategory}
-        if dictionary.category is not None and dictionary.category not in categories:
+        if dictionary.category and dictionary.category not in categories:
             raise invalid("category", f"must be one of {', '.join(sorted(categories))}")
         if dictionary.copyright is not None and not isinstance(dictionary.copyright, str):
             raise invalid("copyright", "must be a string when provided")
+        if dictionary.copyright is not None:
+            dictionary.copyright = dictionary.copyright.strip() or None
         if isinstance(dictionary.size, bool) or not isinstance(dictionary.size, int) or dictionary.size < 0:
             raise invalid("size", "must be a non-negative integer")
         if isinstance(dictionary.version, bool) or not isinstance(dictionary.version, int) or dictionary.version < 0:
             raise invalid("version", "must be a non-negative integer")
 
-        algorithm_aliases = {
-            "SHA1": "SHA-1", "SHA-1": "SHA-1",
-            "SHA256": "SHA-256", "SHA-256": "SHA-256",
-            "SHA512": "SHA-512", "SHA-512": "SHA-512",
-        }
+        algorithm_aliases = {algorithm.value: algorithm.value for algorithm in HashAlgorithm}
+        algorithm_aliases.update({algorithm.replace("-", ""): algorithm for algorithm in algorithm_aliases})
         if not isinstance(dictionary.hash_algo, str):
             raise invalid("hash_algo", "must be one of SHA-1, SHA-256, or SHA-512")
         algorithm_key = dictionary.hash_algo.strip().upper().replace("_", "-")
