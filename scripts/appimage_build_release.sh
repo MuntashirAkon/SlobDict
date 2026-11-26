@@ -16,6 +16,7 @@ XAPIAN_VERSION="1.4.32"
 LIBZIM_VERSION="9.8.2"
 BLUEPRINT_VERSION="v0.22.2"
 LIBADWAITA_VERSION="1.10.0"
+APPIMAGETOOL_VERSION="1.9.1"
 
 # Clean up previous builds
 rm -rf "$APPDIR" "$BUILD_DIR" "$SOURCE_DIR"
@@ -334,12 +335,27 @@ rm -f "$APPDIR/usr/conda/lib/gtk-4.0/4.0.0/immodules/libim-ibus.so"
 
 # Final AppImage Generation
 echo "Bundling the final AppImage..."
-# We use appimagetool natively here because it doesn't parse ELF files,
-# it just packages the prepared directory perfectly.
+# Use the maintained upstream appimagetool release. It packages the prepared
+# AppDir and downloads the current type2 runtime from its separate upstream.
+APPIMAGETOOL="$SOURCE_DIR/appimagetool-x86_64.AppImage"
+download_if_missing \
+  "https://github.com/AppImage/appimagetool/releases/download/${APPIMAGETOOL_VERSION}/appimagetool-x86_64.AppImage"
+chmod +x "$APPIMAGETOOL"
 
-if [ ! -f "appimagetool-x86_64.AppImage" ]; then
-  wget -nc https://github.com/AppImage/AppImageKit/releases/download/continuous/appimagetool-x86_64.AppImage
-  chmod +x appimagetool-x86_64.AppImage
+# Use the generated package constants as the single source of release version.
+CONSTANTS_FILE="$(find "$APPDIR/usr" -type f -path '*/slobdict/constants.py' -print -quit)"
+if [ -z "$CONSTANTS_FILE" ]; then
+  echo "Could not find the generated SlobDict constants.py in the AppDir." >&2
+  exit 1
+fi
+VERSION="$(sed -n 's/^version = "\([^"]*\)"/\1/p' "$CONSTANTS_FILE")"
+if [ -z "$VERSION" ]; then
+  echo "Could not read the release version from generated constants.py." >&2
+  exit 1
 fi
 
-APPIMAGE_EXTRACT_AND_RUN=1 ./appimagetool-x86_64.AppImage "$APPDIR"
+APPIMAGE_EXTRACT_AND_RUN=1 \
+  APPIMAGETOOL_APP_NAME=Slob_Dictionary \
+  ARCH=x86_64 \
+  VERSION="$VERSION" \
+  "$APPIMAGETOOL" "$APPDIR"
